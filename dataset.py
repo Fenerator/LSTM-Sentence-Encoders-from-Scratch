@@ -30,22 +30,9 @@ def load_glove_model(glove_file="data/GloVe/glove.840B.300d.txt"):
         with open(glove_file + ".cache", "wb") as cache_file:
             pickle.dump(embeddings, cache_file)
 
-        print(f"Loaded {len(embeddings)} GloVe embeddings.")
+    print(f"Loaded {len(embeddings)} GloVe embeddings.")
 
     return embeddings
-    # word2embedding = {}
-    # print(f"Loading GloVe embeddings from {glove_file}...")
-    # with open(glove_file, "r") as f:
-    #     for line in f:
-    #         l = line.split()
-    #         print(f"word: {l[0]}")
-    #         print(f"embedding: {l[1:5]}")
-    #         word = l[0]
-    #         embedding = np.array(l[1:], dtype=np.float64)
-    #         word2embedding[word] = embedding
-    # print(f"Loaded {len(word2embedding)} embeddings.")
-
-    return word2embedding
 
 
 def to_embedding(tokens: list):
