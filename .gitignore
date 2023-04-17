@@ -126,3 +126,7 @@ dmypy.json
 atcs.code-workspace
 
 data/GloVe/
+
+data/
+
+.DS_Store
