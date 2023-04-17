@@ -1,4 +1,4 @@
-from dataset.dataset import prepare_snli_data
+from dataset import prepare_snli_data
 
 # get data and preprocess
 prepare_snli_data(split="validation")

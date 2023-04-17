@@ -42,11 +42,13 @@ def prepare_snli_data(split="train"):
     # get embeddings
     global word2embedding
     word2embedding = get_word2embedding()
+
     # get dataset
     ds = load_dataset("snli", split=split)
 
     # preprocessing: lowercase, tokenize
     ds2 = ds.map(lambda x: preprocess(x["premise"]), batched=False)
+    ds2 = ds2.map(lambda x: preprocess(x["hypothesis"]), batched=False)
 
     ds2.set_format(type="torch", columns=["premise", "hypothesis", "label"])
 
