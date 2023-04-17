@@ -1,7 +1,8 @@
-from dataset import prepare_snli_data
+from dataset import Custom_Dataset
 
-# get data and preprocess
-prepare_snli_data(split="validation")
+# prepare data
+dataloaders = Custom_Dataset(glove_path="data/GloVe/glove.840B.300d.txt")
+
 
 # training
 # all in all 4 models

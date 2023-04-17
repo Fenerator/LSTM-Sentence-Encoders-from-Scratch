@@ -10,68 +10,77 @@ import os, pickle
 nltk.download("punkt")
 
 
-def load_glove_model(glove_file="data/GloVe/glove.840B.300d.txt"):
-    if os.path.exists(glove_file + ".cache"):
-        print("Found cache. Loading...")
-        with open(glove_file + ".cache", "rb") as cache_file:
-            embeddings = pickle.load(cache_file)
-    else:
-        print("No cache found. Loading GloVe embeddings from file...")
-        embeddings = dict()
+class Custom_Dataset:
+    def __init__(self, glove_path) -> None:
 
-        with open(glove_file) as f:
-            for line in f:
-                line = line.rstrip("\n")
-                vocab_word, *vec = line.rsplit(" ", maxsplit=300)
-                assert len(vec) == 300, f"Unexpected line: {line}"
-                emb = np.array(list(map(float, vec[1:])), dtype=np.float32)
-                embeddings[vocab_word] = emb
+        self.glove_file = glove_path
 
-        with open(glove_file + ".cache", "wb") as cache_file:
-            pickle.dump(embeddings, cache_file)
+        self.glove_embeddings = self.load_glove_model(self.glove_file)
 
-    print(f"Loaded {len(embeddings)} GloVe embeddings.")
+        # preporcessing and creating dataloaders
+        self.test_dl = self.prepare_snli_data(split="test")
+        self.val_dl = self.prepare_snli_data(split="validation")
+        self.train_dl = self.prepare_snli_data(split="train")
 
-    return embeddings
-
-
-def to_embedding(tokens: list):
-    embeddings = torch.empty((len(tokens), 300), dtype=torch.float32)
-    for token in tokens:
-        if token in word2embedding.index:
-            embeddings[0] = word2embedding.loc[token].as_matrix()
+    def load_glove_model(self, glove_file="data/GloVe/glove.840B.300d.txt"):
+        if os.path.exists(glove_file + ".cache"):
+            print("Found cache. Loading...")
+            with open(glove_file + ".cache", "rb") as cache_file:
+                embeddings = pickle.load(cache_file)
         else:
-            raise ValueError(f"Token {token} not in word2embedding")
+            print("No cache found. Loading GloVe embeddings from file...")
+            embeddings = dict()
 
-    return embeddings
+            with open(glove_file) as f:
+                for line in f:
+                    line = line.rstrip("\n")
+                    vocab_word, *vec = line.rsplit(" ", maxsplit=300)
+                    assert len(vec) == 300, f"Unexpected line: {line}"
+                    emb = np.array(list(map(float, vec)), dtype=np.float32)
+                    embeddings[vocab_word] = emb
 
+            with open(glove_file + ".cache", "wb") as cache_file:
+                pickle.dump(embeddings, cache_file)
 
-def preprocess(text: str, column: str = "premise"):
-    print(f"text: {text}")
-    tokenized = nltk.tokenize.word_tokenize(text.lower())
-    print(f"tokenized: {tokenized}")
-    sent_tensor = to_embedding(tokenized)
-    print(f"sent_tensor: {sent_tensor}")
+        print(f"Loaded {len(embeddings)} GloVe embeddings.")
 
-    return {f"'{column}': {sent_tensor}"}
+        return embeddings
 
+    def to_embedding(self, tokens: list):
+        embeddings = torch.zeros((len(tokens), 300), dtype=torch.float32)
 
-def prepare_snli_data(split="train"):
-    # get embeddings
-    global word2embedding
-    word2embedding = load_glove_model()
+        for t, token in enumerate(tokens):
+            if token in self.glove_embeddings.keys():
+                token_emb = self.glove_embeddings[token]
+                embeddings[t, :] = torch.from_numpy(token_emb).to(embeddings)  # token, embedding dim
+            else:
+                raise ValueError(f"Token {token} not in vocabulary of GloVe.")
 
-    # get dataset
-    ds = load_dataset("snli", split=split)
+        return embeddings
 
-    # preprocessing: lowercase, tokenize
-    ds2 = ds.map(lambda x: preprocess(x["premise"]), batched=False)
-    # ds2 = ds2.map(lambda x: preprocess(x["hypothesis"]), batched=False)
+    def preprocess(self, text: str, column: str = "premise"):
+        print(f"text: {text}")
+        tokenized = nltk.tokenize.word_tokenize(text.lower())
+        print(f"tokenized: {tokenized}")
+        sent_tensor = self.to_embedding(tokenized)
+        print(f"sent_tensor shape: {sent_tensor.shape}")
+        return {f"{column}": sent_tensor}
 
-    ds2.set_format(type="torch", columns=["premise", "hypothesis", "label"])
+    def prepare_snli_data(self, split="train"):
+        print(f"Loading {split} data...")
 
-    # preprocessing
+        # get dataset
+        ds = load_dataset("snli", split=split)
 
-    dataloader = torch.utils.data.DataLoader(ds2, batch_size=1)
+        # preprocessing: lowercase, tokenize
+        print(f"Preprocessing {split} data...")
+        ds2 = ds.map(lambda x: self.preprocess(x["premise"]), batched=False)
+        # ds2 = ds2.map(lambda x: preprocess(x["hypothesis"]), batched=False)
 
-    print(next(iter(dataloader)))
+        ds2.set_format(type="torch", columns=["premise", "hypothesis", "label"])
+
+        # preprocessing
+
+        dataloader = torch.utils.data.DataLoader(ds2, batch_size=1)
+
+        print(next(iter(dataloader)))
