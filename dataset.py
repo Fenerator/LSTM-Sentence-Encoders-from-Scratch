@@ -8,6 +8,7 @@ import csv
 import os, pickle
 from collections import Counter, OrderedDict, defaultdict
 
+
 nltk.download("punkt")
 
 
@@ -71,19 +72,29 @@ class Vocabulary:
 
 
 class Custom_Dataset:
-    def __init__(self, glove_path) -> None:
+    def __init__(self, glove_path, batch_size=1) -> None:
 
         self.glove_file = glove_path
+        self.batch_size = batch_size
 
         # build vocabulary
         self.vocab = self.load_glove_embeddings(self.glove_file)  # load vocab from glove embeddings
 
-        # preporcessing and creating dataloaders
-        # self.test_dl = self.prepare_snli_data(split="test")
-        self.val_dl = self.prepare_snli_data(split="validation")
-        # self.train_dl = self.prepare_snli_data(split="train")
+        # preporcessing
+        print(f"Creating dataloader...")
+        self.test_ds = self.prepare_snli_data(split="test")
+        self.val_ds = self.prepare_snli_data(split="validation")
+        # self.train_ds = self.prepare_snli_data(split="train")
 
-    def load_glove_embeddings(self, glove_file="data/GloVe/glove.840B.300d.txt", v=None):
+        # create dataloaders
+        self.test_dl = torch.utils.data.DataLoader(self.test_ds, batch_size=self.batch_size, shuffle=False)
+        self.val_dl = torch.utils.data.DataLoader(self.test_ds, batch_size=self.batch_size, shuffle=False)
+        self.train_dl = torch.utils.data.DataLoader(self.test_ds, batch_size=self.batch_size, shuffle=True)
+
+        # sort the batches by length
+        ...
+
+    def load_glove_embeddings(self, glove_file="data/GloVe/glove.840B.300d.txt"):
         if os.path.exists(glove_file + "_vocab.cache"):
             print("Found Vocab cache. Loading...")
             with open(glove_file + "_vocab.cache", "rb") as cache_file:
@@ -136,15 +147,12 @@ class Custom_Dataset:
             with open(self.glove_file + f"_snli_{split}.cache", "wb") as cache_file:
                 pickle.dump(ds2, cache_file)
 
-        # create dataloader
-        print(f"Creating {split} dataloader...")
-        dataloader = torch.utils.data.DataLoader(ds2, batch_size=1)
-
-        return dataloader
+        return ds2
 
     def preprocess(self, text: str, column: str = "premise"):
 
-        tokenized = nltk.tokenize.word_tokenize(text.lower())
+        tokenized = nltk.tokenize.word_tokenize(text)
+        tokenized = [t.lower() for t in tokenized]
 
         # sent_tensor = self.to_embedding(tokenized)
         # print(f"sent_tensor shape: {sent_tensor.shape}")
