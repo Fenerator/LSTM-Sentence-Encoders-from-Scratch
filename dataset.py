@@ -73,7 +73,6 @@ class Vocabulary:
 
 class Custom_Dataset:
     def __init__(self, glove_path, batch_size=1) -> None:
-
         self.glove_file = glove_path
         self.batch_size = batch_size
 
@@ -84,15 +83,12 @@ class Custom_Dataset:
         print(f"Creating dataloader...")
         self.test_ds = self.prepare_snli_data(split="test")
         self.val_ds = self.prepare_snli_data(split="validation")
-        # self.train_ds = self.prepare_snli_data(split="train")
+        # self.train_ds = self.prepare_snli_data(split="train") # TODO
 
         # create dataloaders
         self.test_dl = torch.utils.data.DataLoader(self.test_ds, batch_size=self.batch_size, shuffle=False)
-        self.val_dl = torch.utils.data.DataLoader(self.test_ds, batch_size=self.batch_size, shuffle=False)
-        self.train_dl = torch.utils.data.DataLoader(self.test_ds, batch_size=self.batch_size, shuffle=True)
-
-        # sort the batches by length
-        ...
+        self.val_dl = torch.utils.data.DataLoader(self.val_ds, batch_size=self.batch_size, shuffle=False)
+        self.train_dl = torch.utils.data.DataLoader(self.val_ds, batch_size=self.batch_size, shuffle=True)  # todo change
 
     def load_glove_embeddings(self, glove_file="data/GloVe/glove.840B.300d.txt"):
         if os.path.exists(glove_file + "_vocab.cache"):
@@ -150,7 +146,6 @@ class Custom_Dataset:
         return ds2
 
     def preprocess(self, text: str, column: str = "premise"):
-
         tokenized = nltk.tokenize.word_tokenize(text)
         tokenized = [t.lower() for t in tokenized]
 
