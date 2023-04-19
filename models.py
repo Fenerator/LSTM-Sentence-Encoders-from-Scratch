@@ -11,13 +11,13 @@ class Model(nn.Module):
 
         self.classifier = nn.Sequential(nn.Linear(2 * encoding_dim, hidden_dim), nn.Linear(hidden_dim, output_dim))  # TODO check specifics
 
-    def forward(self, prem, hypo):
-        u = self.encoder_block(prem)
-        v = self.encoder_block(hypo)
+    def forward(self, premise, len_premise, hypothesis, len_hypothesis):
+        u = self.encoder_block(premise)
+        v = self.encoder_block(hypothesis)
 
         # combinations of u and v
         abs_difference = torch.abs(u - v)
-        product = u * v  # element-wise product
+        product = u * v  # element-wise product!
 
         # concatenate
         concatenated = torch.cat((u, v, abs_difference, product), dim=1)
