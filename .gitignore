@@ -132,3 +132,5 @@ data/
 .DS_Store
 
 checkpoints/
+
+logs/
