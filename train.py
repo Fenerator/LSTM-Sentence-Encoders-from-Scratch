@@ -2,6 +2,19 @@ from prepare_data import prepare_data
 from models import Baseline, LSTM, BiLSTM, BiLSTMMax, Model
 import torch
 from pathlib import Path
+import numpy as np
+from torch.utils.tensorboard import SummaryWriter
+
+
+def seed_everything(seed: int):
+    # Set the random seeds for reproducibility
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():  # GPU operation have separate seed
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.determinstic = True
+        torch.backends.cudnn.benchmark = False
 
 
 class Train:
@@ -9,19 +22,26 @@ class Train:
         # configs
         self.data_path = Path("data/")
         self.checkpoint_path = Path("checkpoints/")
+        self.log_path = Path("logs/")
+        self.seed = 42
+        self.lr = 0.001
 
         self.data_path.mkdir(parents=True, exist_ok=True)
         self.checkpoint_path.mkdir(parents=True, exist_ok=True)
+        self.log_path.mkdir(parents=True, exist_ok=True)
 
         self.batch_sizes = (16, 256, 256)
         self.val_frequency = 10000
         self.verbose = True
 
-        self.epochs = 1
+        self.epochs = 2
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         self.sent_encoder_model = sent_encoder_model  # TODO adapt to other models
+
+        # reproducibility
+        seed_everything(self.seed)
 
         # prepare data dl
         # dl contains keys: premise: (text, len), hypothesis (text, len), label
@@ -34,12 +54,17 @@ class Train:
 
         # training hyperparameters
         self.model = Model(self.sent_encoder, self.encoding_dim, hidden_dim=512, output_dim=3)  # check specifics
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         self.criterion = torch.nn.CrossEntropyLoss()
 
         self.model.to(self.device)
 
+        # tensorboard
+        config = {"encoder": self.sent_encoder_model, "val_freq": self.val_frequency, "batch_size": self.batch_sizes, "lr": self.lr, "device": self.device, "epochs": self.epochs, "seed": self.seed}
+        self.writer = SummaryWriter(self.log_path / f"{config}")
+
     def train_batch(self, batch):
+        self.global_step += 1  # for tensorboard
         batch_results = {}
 
         self.model.train()
@@ -62,12 +87,8 @@ class Train:
         loss.backward()
         self.optimizer.step()
 
+        # metrics
         batch_results["loss"] = loss.item()
-
-        # log acc of the batch # TODO
-        # print(f"Shape of output: {output.shape}, shape of labels: {labels.shape}, shape of predictions: {predictions.shape}")
-        # print(f"Output: {output}, labels: {labels}, predictions: {predictions}")
-
         batch_results["accuracy"] = (predictions == labels).float().mean()
 
         return batch_results
@@ -88,8 +109,6 @@ class Train:
         loss = self.criterion(output, labels)
 
         batch_results["loss"] = loss.item()
-
-        # log acc of the batch # TODO
         batch_results["accuracy"] = (predictions == labels).float().mean()
 
         return batch_results
@@ -109,10 +128,10 @@ class Train:
 
         print(f"Test loss: {eval_results['loss']:.4f}, Test accuracy: {eval_results['accuracy']:.4f}")
 
-    def evaluate_model(self, mode="validation"):
+    def evaluate_model(self, mode="val"):
         batch_losses, batch_accuracies = [], []
 
-        dl = self.val_dl if mode == "validation" else self.test_dl
+        dl = self.val_dl if mode == "val" else self.test_dl
 
         self.model.eval()
         with torch.no_grad():
@@ -121,10 +140,15 @@ class Train:
                 batch_accuracies.append(batch_results["accuracy"])
                 batch_losses.append(batch_results["loss"])
 
+        # calculate metrics per epoch
         loss = sum(batch_losses) / len(batch_losses)
         accuracy = sum(batch_accuracies) / len(batch_accuracies)
 
-        if accuracy > self.best_val_acc and mode == "validation":
+        # logging
+        self.writer.add_scalar(f"epoch_loss/{mode}", loss, self.global_step)
+        self.writer.add_scalar(f"epoch_accuracy/{mode}", accuracy, self.global_step)
+
+        if accuracy > self.best_val_acc and mode == "val":
             torch.save(
                 {
                     "epoch": self.highest_epoch,
@@ -137,30 +161,30 @@ class Train:
             )
             self.best_val_acc = accuracy  # update best val acc
 
+            print(f"New best model saved with accuracy: {accuracy:.4f} and loss: {loss:.4f}! (at epoch: {self.highest_epoch}")
+
         return {"loss": loss, "accuracy": accuracy}
 
-        # TODO logging
-
     def train_model(self):
-        self.highest_epoch = 0  # needed for saving the model
+        # vars for saving the model, and logging
+        self.highest_epoch = 0
         self.best_val_acc = 0.0
+        self.global_step = 0
+        self.current_epoch = 0  # TODO really needed?
 
         for epoch in range(0, self.epochs):
             for b, batch in enumerate(self.train_dl):
-                batch_results = self.train_batch(batch)  # TODO change verbose
+                batch_results = self.train_batch(batch)
 
-                # print loss
-                # if b % 100 == 0:
-                if self.verbose:
-                    print(f"Epoch: {epoch+1}, Batch: {b+1}, Loss: {batch_results['loss']:.4f}, Accuracy: {batch_results['accuracy']:.4f}")
-
-                # TODO logging
-                ...
+                # logging
+                self.writer.add_scalar("loss/train", batch_results["loss"], self.global_step)
+                self.writer.add_scalar("accuracy/train", batch_results["accuracy"], self.global_step)
 
                 # validate model on dev set
                 if b % self.val_frequency == 0:
-                    self.evaluate_model(mode="validation")
+                    self.evaluate_model(mode="val")
 
+            self.current_epoch += 1  # TODO really needed?
             self.highest_epoch += 1
 
 
