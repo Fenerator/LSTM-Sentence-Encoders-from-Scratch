@@ -42,13 +42,43 @@ class Baseline(nn.Module):
         return mean_embedded
 
 
-class LSTM(nn.Module):
-    ...
+class UniLSTM(nn.Module):
+    def __init__(self, embeddings, hidden_size, batch_size, num_layers, device):
+        super().__init__()
+        input_size = embeddings.shape[1]
+
+        self.embeddings = nn.Embedding.from_pretrained(embeddings, freeze=True)
+
+        print(f"Input size: {input_size}")
+
+        self.layers = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True, bidirectional=False)
+
+        # tensors for the initial hidden and cell states
+        self.h0 = torch.zeros(num_layers, batch_size, hidden_size).to(device)  # todo rename!!!!!
+        self.c0 = torch.zeros(num_layers, batch_size, hidden_size).to(device)  # todo rename!!!!!
+
+    def forward(self, text, text_length):
+        embedded = self.embeddings(text)
+
+        embedded_packed = nn.utils.rnn.pack_padded_sequence(embedded, lengths=text_length, batch_first=True, enforce_sorted=False)
+        x, (hn, cn) = self.layers(embedded_packed, (self.h0, self.c0))  # TODO rename x
+
+        last_hn = hn[-1]  # return the last hidden state of the last layer # TODO same as squeeze()?
+
+        return last_hn
 
 
 class BiLSTM(nn.Module):
-    ...
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, text):
+        ...
 
 
 class BiLSTMMax(nn.Module):
-    ...
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, text):
+        ...

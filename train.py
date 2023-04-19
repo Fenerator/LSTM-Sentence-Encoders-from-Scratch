@@ -1,5 +1,5 @@
 from prepare_data import prepare_data
-from models import Baseline, LSTM, BiLSTM, BiLSTMMax, Model
+from models import Baseline, UniLSTM, BiLSTM, BiLSTMMax, Model
 import torch
 from pathlib import Path
 import numpy as np
@@ -31,7 +31,7 @@ class Train:
         self.log_path.mkdir(parents=True, exist_ok=True)
 
         self.batch_sizes = (16, 256, 256)
-        self.val_frequency = 10000
+        self.val_frequency = 100000
         self.verbose = True
 
         self.epochs = 2
@@ -47,13 +47,11 @@ class Train:
         # dl contains keys: premise: (text, len), hypothesis (text, len), label
         self.train_dl, self.val_dl, self.test_dl, self.vocab = prepare_data(data_path=self.data_path, batch_sizes=self.batch_sizes)
 
-        # set the encoding method
-        if self.sent_encoder_model == "baseline":
-            self.sent_encoder = Baseline(self.vocab.vectors)
-            self.encoding_dim = self.vocab.vectors.shape[1]
+        # set the encoding method and parameters regarding the encoding
+        self.set_sent_encoder()
 
         # training hyperparameters
-        self.model = Model(self.sent_encoder, self.encoding_dim, hidden_dim=512, output_dim=3)  # check specifics
+        self.model = Model(self.sent_encoder, self.embedding_size, hidden_dim=512, output_dim=3)  # check specifics
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         self.criterion = torch.nn.CrossEntropyLoss()
 
@@ -62,6 +60,26 @@ class Train:
         # tensorboard
         config = {"encoder": self.sent_encoder_model, "val_freq": self.val_frequency, "batch_size": self.batch_sizes, "lr": self.lr, "device": self.device, "epochs": self.epochs, "seed": self.seed}
         self.writer = SummaryWriter(self.log_path / f"{config}")
+
+    def set_sent_encoder(self):
+        if self.sent_encoder_model == "baseline":
+            self.sent_encoder = Baseline(self.vocab.vectors)
+            self.embedding_size = self.vocab.vectors.shape[1]  # sentence embedding size
+
+        elif self.sent_encoder_model == "unilstm":  # unidirectional LSTM
+            self.embedding_size = 2048  # TODO check specifics; eventually rename to hidden_size
+            self.sent_encoder = UniLSTM(embeddings=self.vocab.vectors, hidden_size=self.embedding_size, batch_size=self.batch_sizes, num_layers=1, device=self.device)  # TODO check specifics
+
+        elif self.sent_encoder_model == "bilstm":
+            ...
+            self.embedding_size = ...
+
+        elif self.sent_encoder_model == "bilstmmax":
+            ...
+            self.embedding_size = ...
+
+        else:
+            raise ValueError(f"Model {self.sent_encoder_model} not implemented.")
 
     def train_batch(self, batch):
         self.global_step += 1  # for tensorboard
