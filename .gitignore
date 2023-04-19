@@ -130,3 +130,5 @@ data/GloVe/
 data/
 
 .DS_Store
+
+checkpoints/

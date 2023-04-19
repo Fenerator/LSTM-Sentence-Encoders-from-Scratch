@@ -1,13 +1,18 @@
 from prepare_data import prepare_data
 from models import Baseline, LSTM, BiLSTM, BiLSTMMax, Model
 import torch
+from pathlib import Path
 
 
 class Train:
     def __init__(self, sent_encoder_model: str):
         # configs
-        self.data_path = "data/"
-        self.checkpoint_path = "checkpoints/"
+        self.data_path = Path("data/")
+        self.checkpoint_path = Path("checkpoints/")
+
+        self.data_path.mkdir(parents=True, exist_ok=True)
+        self.checkpoint_path.mkdir(parents=True, exist_ok=True)
+
         self.batch_sizes = (16, 256, 256)
         self.val_frequency = 10000
         self.verbose = True
@@ -77,6 +82,7 @@ class Train:
 
         # forward pass
         output = self.model(premise, len_premise, hypothesis, len_hypothesis)
+        predictions = torch.argmax(output, dim=1)  # shape: (batch_size,)
 
         # calculate loss
         loss = self.criterion(output, labels)
@@ -84,13 +90,13 @@ class Train:
         batch_results["loss"] = loss.item()
 
         # log acc of the batch # TODO
-        batch_results["accuracy"] = (output == labels).float().mean()
+        batch_results["accuracy"] = (predictions == labels).float().mean()
 
         return batch_results
 
     def test_model(self):
         # load best model
-        checkpoint = torch.load(self.checkpoint_path + f"{self.sent_encoder_model}_best_model.pt")
+        checkpoint = torch.load(self.checkpoint_path / f"{self.sent_encoder_model}_best_model.pt")
 
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
@@ -111,7 +117,7 @@ class Train:
         self.model.eval()
         with torch.no_grad():
             for b, batch in enumerate(dl):
-                batch_results = self.val_batch()
+                batch_results = self.val_batch(batch)
                 batch_accuracies.append(batch_results["accuracy"])
                 batch_losses.append(batch_results["loss"])
 
@@ -127,7 +133,7 @@ class Train:
                     "loss": loss,
                     "accuracy": accuracy,
                 },
-                self.checkpoint_path + f"{self.sent_encoder_model}_best_model.pt",
+                self.checkpoint_path / f"{self.sent_encoder_model}_best_model.pt",
             )
             self.best_val_acc = accuracy  # update best val acc
 

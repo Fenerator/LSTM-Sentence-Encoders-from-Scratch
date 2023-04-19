@@ -1,4 +1,5 @@
 import torchtext
+from pathlib import Path
 
 
 def prepare_data(data_path: str, batch_sizes: tuple) -> tuple:
@@ -21,7 +22,7 @@ def prepare_data(data_path: str, batch_sizes: tuple) -> tuple:
     train, val, test = torchtext.datasets.SNLI.splits(text_field=TEXT, label_field=LABEL, root=data_path)
 
     # build vocabulary
-    TEXT.build_vocab(train, vectors=torchtext.vocab.GloVe(cache=data_path + "GloVe/"))
+    TEXT.build_vocab(train, vectors=torchtext.vocab.GloVe(cache=data_path / "GloVe/"))
     LABEL.build_vocab(train)
 
     # create dataloaders
