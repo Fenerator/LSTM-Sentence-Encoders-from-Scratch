@@ -22,11 +22,11 @@ class Model(nn.Module):
         # concatenate
         concatenated = torch.cat((u, v, abs_difference, product), dim=1)  # shape: (batch_size, 4 * encoding_dim)
 
-        print(f"Shape of concatenated: {concatenated.shape}")
+        # print(f"Shape of concatenated: {concatenated.shape}")
 
         output = self.classifier(concatenated)
 
-        print(f"Shape of output: {output.shape}")
+        # print(f"Shape of output: {output.shape}")
         return output
 
 

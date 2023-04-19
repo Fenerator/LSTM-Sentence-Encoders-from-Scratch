@@ -65,8 +65,8 @@ class Train:
         batch_results["loss"] = loss.item()
 
         # log acc of the batch # TODO
-        print(f"Shape of output: {output.shape}, shape of labels: {labels.shape}, shape of predictions: {predictions.shape}")
-        print(f"Output: {output}, labels: {labels}, predictions: {predictions}")
+        # print(f"Shape of output: {output.shape}, shape of labels: {labels.shape}, shape of predictions: {predictions.shape}")
+        # print(f"Output: {output}, labels: {labels}, predictions: {predictions}")
 
         batch_results["accuracy"] = (predictions == labels).float().mean()
 
@@ -105,7 +105,7 @@ class Train:
         self.best_val_acc = checkpoint["accuracy"]
         self.highest_epoch = checkpoint["epoch"]
 
-        eval_results = self.evaluate_model(self.test_dl, mode="test")
+        eval_results = self.evaluate_model(mode="test")
 
         print(f"Test loss: {eval_results['loss']:.4f}, Test accuracy: {eval_results['accuracy']:.4f}")
 
