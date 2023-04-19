@@ -3,9 +3,8 @@ from models import Baseline, LSTM, BiLSTM, BiLSTMMax, Model
 import torch
 
 
-# prepare data
 class Train:
-    def __init__(self, data_path: str, batch_sizes: tuple, exp_name: str, sent_encoder_model: str):
+    def __init__(self, sent_encoder_model: str):
         # configs
         self.data_path = "data/"
         self.checkpoint_path = "checkpoints/"
@@ -17,7 +16,7 @@ class Train:
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        self.sent_encoder_model = "baseline"  # TODO adapt to other models
+        self.sent_encoder_model = sent_encoder_model  # TODO adapt to other models
 
         # prepare data dl
         # dl contains keys: premise: (text, len), hypothesis (text, len), label
@@ -26,9 +25,10 @@ class Train:
         # set the encoding method
         if self.sent_encoder_model == "baseline":
             self.sent_encoder = Baseline(self.vocab.vectors)
+            self.encoding_dim = self.vocab.vectors.shape[1]
 
         # training hyperparameters
-        self.model = Model(self.sent_encoder, encoding_dim=300, hidden_dim=300, output_dim=3)
+        self.model = Model(self.sent_encoder, self.encoding_dim, hidden_dim=512, output_dim=3)  # check specifics
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
         self.criterion = torch.nn.CrossEntropyLoss()
 
@@ -48,6 +48,8 @@ class Train:
         # forward pass
         output = self.model(premise, len_premise, hypothesis, len_hypothesis)
 
+        predictions = torch.argmax(output, dim=1)  # shape: (batch_size,)
+
         # calculate loss
         loss = self.criterion(output, labels)
 
@@ -58,7 +60,10 @@ class Train:
         batch_results["loss"] = loss.item()
 
         # log acc of the batch # TODO
-        batch_results["accuracy"] = (output == labels).float().mean()
+        print(f"Shape of output: {output.shape}, shape of labels: {labels.shape}, shape of predictions: {predictions.shape}")
+        print(f"Output: {output}, labels: {labels}, predictions: {predictions}")
+
+        batch_results["accuracy"] = (predictions == labels).float().mean()
 
         return batch_results
 
@@ -154,12 +159,12 @@ class Train:
 
 
 # training
-# encode premise and hypothesis with GloVE embeddings
+def main():
+    # TODO add argparse
+    trainer = Train(sent_encoder_model="baseline")
+    trainer.train_model()
+    trainer.test_model()
 
-# encode premise and hypothesis with LSTM
 
-# classify premise and hypothesis
-# all in all 4 models
-
-
-# evaluation
+if __name__ == "__main__":
+    main()

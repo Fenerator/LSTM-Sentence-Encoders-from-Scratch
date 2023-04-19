@@ -9,10 +9,10 @@ class Model(nn.Module):
 
         self.encoder_block = sentence_encoder
 
-        self.classifier = nn.Sequential(nn.Linear(2 * encoding_dim, hidden_dim), nn.Linear(hidden_dim, output_dim))  # TODO check specifics
+        self.classifier = nn.Sequential(nn.Linear(4 * encoding_dim, hidden_dim), nn.ReLU(), nn.Linear(hidden_dim, output_dim))  # TODO check specifics
 
     def forward(self, premise, len_premise, hypothesis, len_hypothesis):
-        u = self.encoder_block(premise)
+        u = self.encoder_block(premise)  # shape: (batch_size, encoding_dim)
         v = self.encoder_block(hypothesis)
 
         # combinations of u and v
@@ -20,10 +20,13 @@ class Model(nn.Module):
         product = u * v  # element-wise product!
 
         # concatenate
-        concatenated = torch.cat((u, v, abs_difference, product), dim=1)
+        concatenated = torch.cat((u, v, abs_difference, product), dim=1)  # shape: (batch_size, 4 * encoding_dim)
+
+        print(f"Shape of concatenated: {concatenated.shape}")
 
         output = self.classifier(concatenated)
 
+        print(f"Shape of output: {output.shape}")
         return output
 
 
@@ -33,8 +36,8 @@ class Baseline(nn.Module):
         self.embeddings = nn.Embedding.from_pretrained(embeddings, freeze=True)
 
     def forward(self, text):
-        embedded = self.embedding(text[0])
-        mean_embedded = torch.mean(embedded, dim=1)
+        embedded = self.embeddings(text)
+        mean_embedded = torch.mean(embedded, dim=1)  # mean over the embedding dimension: shape: (batch_size, embedding_dim=300)
 
         return mean_embedded
 
