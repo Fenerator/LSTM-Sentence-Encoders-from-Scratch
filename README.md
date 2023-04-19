@@ -10,8 +10,8 @@ unzip data/GloVe/glove.840B.300d.zip -d data/GloVe/
 rm data/GloVe/glove.840B.300d.zip
 ```
 
-```
+install torchtext v 0.6.0
 
-```bash
-python -m spacy download en_core_web_sm
-```
+ ```bash
+ pip install torchtext==0.6.0
+ ```
