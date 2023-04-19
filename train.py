@@ -209,7 +209,7 @@ class Train:
 # training
 def main():
     # TODO add argparse
-    trainer = Train(sent_encoder_model="baseline")
+    trainer = Train(sent_encoder_model="unilstm")
     trainer.train_model()
     trainer.test_model()
 
