@@ -108,8 +108,32 @@ class BiLSTM(nn.Module):
 
 
 class BiLSTMMax(nn.Module):
-    def __init__(self):
+    def __init__(self, embeddings, hidden_size, batch_size, num_layers, device):
         super().__init__()
 
-    def forward(self, text):
-        ...
+        hidden_size = int(hidden_size / 2)  # hidden size is doubled because of bidirectional LSTM
+        input_size = embeddings.shape[1]  # embedding dimensionality (300)
+
+        print(f"Input size: {input_size}")
+        self.embeddings = nn.Embedding.from_pretrained(embeddings, freeze=True)
+        self.layers = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True, bidirectional=True)  # bidirectional LSTM
+
+    def forward(self, text, text_length):
+        embedded = self.embeddings(text)
+
+        # padding and packing
+        embedded_padded = nn.utils.rnn.pad_sequence(embedded, batch_first=True)  # batch, seq, feature
+        embedded_packed = nn.utils.rnn.pack_padded_sequence(embedded_padded, lengths=text_length, batch_first=True, enforce_sorted=False)  # optimize for speed
+
+        # output: Batch_size,L,D*H out (packed sequence)
+        # h_n: 1,Batch_size,H_out​ (2 = D*num_layers)
+        # c_n: 1,Batch_size,H of cell (2 = D*num_layers)
+        output, (h_n, c_n) = self.layers(embedded_packed)
+
+        # revert the packing
+        output_padded_only = nn.utils.rnn.pad_packed_sequence(output, batch_first=True)[0]  # discards the lengths
+
+        # find the max in all hidden states
+        sent_repr_max_pooled = torch.max(output_padded_only, dim=1)[0]  # to get values only, discard indices
+
+        return sent_repr_max_pooled

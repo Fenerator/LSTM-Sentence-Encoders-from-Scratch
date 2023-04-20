@@ -83,7 +83,7 @@ class Train:
 
         elif self.sent_encoder_model == "bilstmmax":
             self.embedding_size = 2 * 2048
-            self.sent_encoder = BiLSTM(embeddings=self.vocab.vectors, hidden_size=self.embedding_size, batch_size=self.batch_size, num_layers=1, device=self.device)
+            self.sent_encoder = BiLSTMMax(embeddings=self.vocab.vectors, hidden_size=self.embedding_size, batch_size=self.batch_size, num_layers=1, device=self.device)
 
             return self.embedding_size
 
@@ -220,7 +220,8 @@ def main():
     # TODO add argparse
     # trainer = Train(sent_encoder_model="baseline")
     # trainer = Train(sent_encoder_model="unilstm")
-    trainer = Train(sent_encoder_model="bilstm")
+    # trainer = Train(sent_encoder_model="bilstm")
+    trainer = Train(sent_encoder_model="bilstmmax")
     trainer.train_model()
     trainer.test_model()
 
