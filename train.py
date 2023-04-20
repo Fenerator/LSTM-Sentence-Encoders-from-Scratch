@@ -30,7 +30,7 @@ class Train:
         self.checkpoint_path.mkdir(parents=True, exist_ok=True)
         self.log_path.mkdir(parents=True, exist_ok=True)
 
-        self.batch_size = 16
+        self.batch_size = 256
         self.val_frequency = 100000
         self.verbose = True
 
@@ -71,6 +71,8 @@ class Train:
         elif self.sent_encoder_model == "unilstm":  # unidirectional LSTM
             self.embedding_size = 2048  # TODO check specifics; eventually rename to hidden_size
             self.sent_encoder = UniLSTM(embeddings=self.vocab.vectors, hidden_size=self.embedding_size, batch_size=self.batch_size, num_layers=1, device=self.device)  # TODO check specifics
+
+            return self.embedding_size
 
         elif self.sent_encoder_model == "bilstm":
             ...
@@ -181,7 +183,7 @@ class Train:
             )
             self.best_val_acc = accuracy  # update best val acc
 
-            print(f"New best model saved with accuracy: {accuracy:.4f} and loss: {loss:.4f}! (at epoch: {self.highest_epoch+1}")
+            print(f"New best model saved with accuracy: {accuracy:.4f} and loss: {loss:.4f} (at epoch: {self.highest_epoch+1}")
 
         return {"loss": loss, "accuracy": accuracy}
 
@@ -211,8 +213,8 @@ class Train:
 # training
 def main():
     # TODO add argparse
-    trainer = Train(sent_encoder_model="baseline")
-    # trainer = Train(sent_encoder_model="unilstm")
+    # trainer = Train(sent_encoder_model="baseline")
+    trainer = Train(sent_encoder_model="unilstm")
     trainer.train_model()
     trainer.test_model()
 
