@@ -10,7 +10,7 @@ class Model(nn.Module):
         self.encoder_block = sentence_encoder
 
         # 4096 * 4 = 16384
-        print(f"Classifier expected in dimension: {4 * encoding_dim}, hidden_dim: {hidden_dim}, output_dim: {output_dim}")
+        # print(f"Classifier expected in dimension: {4 * encoding_dim}, hidden_dim: {hidden_dim}, output_dim: {output_dim}")
         self.classifier = nn.Sequential(nn.Linear(4 * encoding_dim, hidden_dim), nn.ReLU(), nn.Linear(hidden_dim, output_dim))  # TODO check specifics
 
     def forward(self, premise, len_premise, hypothesis, len_hypothesis):
