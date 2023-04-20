@@ -51,6 +51,7 @@ class Train:
         self.embedding_size = self.set_sent_encoder()
 
         # training hyperparameters
+        print(f"USING EMB SIZE: {self.embedding_size}")  # 4096
         self.model = Model(self.sent_encoder, self.embedding_size, hidden_dim=512, output_dim=3)  # check specifics
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         self.criterion = torch.nn.CrossEntropyLoss()
@@ -75,12 +76,16 @@ class Train:
             return self.embedding_size
 
         elif self.sent_encoder_model == "bilstm":
-            ...
-            self.embedding_size = ...
+            self.embedding_size = 2 * 2048  # sentence embedding obtained from both directions
+            self.sent_encoder = BiLSTM(embeddings=self.vocab.vectors, hidden_size=self.embedding_size, batch_size=self.batch_size, num_layers=1, device=self.device)
+
+            return self.embedding_size
 
         elif self.sent_encoder_model == "bilstmmax":
-            ...
-            self.embedding_size = ...
+            self.embedding_size = 2 * 2048
+            self.sent_encoder = BiLSTM(embeddings=self.vocab.vectors, hidden_size=self.embedding_size, batch_size=self.batch_size, num_layers=1, device=self.device)
+
+            return self.embedding_size
 
         else:
             raise ValueError(f"Model {self.sent_encoder_model} not implemented.")
@@ -214,7 +219,8 @@ class Train:
 def main():
     # TODO add argparse
     # trainer = Train(sent_encoder_model="baseline")
-    trainer = Train(sent_encoder_model="unilstm")
+    # trainer = Train(sent_encoder_model="unilstm")
+    trainer = Train(sent_encoder_model="bilstm")
     trainer.train_model()
     trainer.test_model()
 
