@@ -4,6 +4,7 @@ import torch
 from pathlib import Path
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
+import spacy
 
 
 def seed_everything(seed: int):
@@ -140,6 +141,36 @@ class Train:
 
         return batch_results
 
+    def _infer(self, text: list, tokenizer: spacy):
+        tokenized = [w.text.lower() for w in tokenizer(text)]
+
+        indexed, length = [self.vocab.stoi[t] for t in tokenized], [len(tokenized)]
+
+        tensorized = torch.tensor(indexed).to(self.device)
+        tensorized = tensorized.unsqueeze(1).T  # batchsize, seq_len
+        length_tensor = torch.tensor(length, dtype=torch.long).to(self.device)
+
+        return tensorized, length_tensor
+
+    def infer(self, premise: str, hypothesis: str):
+        self.model.eval()
+
+        # tokenize, lowercase
+        tokenizer = spacy.load("en_core_web_sm")
+
+        premise, len_p = self._infer(premise, tokenizer)
+        hypothesis, len_h = self._infer(hypothesis, tokenizer)
+
+        # premise = torch.tensor(premise).to(self.device)
+        # hypothesis = torch.tensor(hypothesis).to(self.device)
+
+        output = self.model(premise, len_p, hypothesis, len_h)
+        print(f"output: {output}")
+        prediction = torch.argmax(output, dim=1)  # shape: (batch_size,)
+        print(f"prediction: {prediction}")
+
+        return prediction
+
     def test_model(self):
         # load best model
         checkpoint = torch.load(self.checkpoint_path / f"{self.sent_encoder_model}_best_model.pt")
@@ -239,12 +270,17 @@ class Train:
 # training
 def main():
     # TODO add argparse
-    trainer = Train(sent_encoder_model="baseline", epochs=100)
+    trainer = Train(sent_encoder_model="baseline", epochs=20)
     # trainer = Train(sent_encoder_model="unilstm")
     # trainer = Train(sent_encoder_model="bilstm")
     # trainer = Train(sent_encoder_model="bilstmmax")
-    trainer.train_model(resume_training=True)
+    # trainer.train_model(resume_training=False)
     # trainer.test_model()
+
+    # example for inference
+    prediction = trainer.infer("The cat is on the mat", "The cat is on the mat")
+
+    # senteval
 
 
 if __name__ == "__main__":
