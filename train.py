@@ -18,7 +18,7 @@ def seed_everything(seed: int):
 
 
 class Train:
-    def __init__(self, sent_encoder_model: str):
+    def __init__(self, sent_encoder_model: str, epochs: int):
         # configs
         self.data_path = Path("data/")
         self.checkpoint_path = Path("checkpoints/")
@@ -34,11 +34,12 @@ class Train:
         self.val_frequency = 100000
         self.verbose = True
 
-        self.epochs = 100
+        self.epochs = epochs
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         self.sent_encoder_model = sent_encoder_model  # TODO adapt to other models
+        self.criterion = torch.nn.CrossEntropyLoss()
 
         # reproducibility
         seed_everything(self.seed)
@@ -51,12 +52,11 @@ class Train:
         self.embedding_size = self.set_sent_encoder()
 
         # training hyperparameters
-        print(f"USING EMB SIZE: {self.embedding_size}")  # 4096
         self.model = Model(self.sent_encoder, self.embedding_size, hidden_dim=512, output_dim=3)  # check specifics
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-        self.criterion = torch.nn.CrossEntropyLoss()
-
-        self.model.to(self.device)
+        self.highest_epoch = 0
+        self.best_val_acc = 0.0
+        self.global_step = 0
 
         # tensorboard
         config = {"encoder": self.sent_encoder_model, "val_freq": self.val_frequency, "batch_size": self.batch_size, "lr": self.lr, "device": self.device, "epochs": self.epochs, "seed": self.seed}
@@ -151,6 +151,7 @@ class Train:
         self.best_val_acc = checkpoint["accuracy"]
         self.highest_epoch = checkpoint["epoch"]
 
+        self.model.to(self.device)
         eval_results = self.evaluate_model(mode="test")
 
         print(f"Test loss: {eval_results['loss']:.4f}, Test accuracy: {eval_results['accuracy']:.4f}")
@@ -179,6 +180,7 @@ class Train:
             torch.save(
                 {
                     "epoch": self.highest_epoch,
+                    "global_step": self.global_step,
                     "model_state_dict": self.model.state_dict(),
                     "optimizer_state_dict": self.optimizer.state_dict(),
                     "loss": loss,
@@ -188,19 +190,40 @@ class Train:
             )
             self.best_val_acc = accuracy  # update best val acc
 
-            print(f"New best model saved with accuracy: {accuracy:.4f} and loss: {loss:.4f} (at epoch: {self.highest_epoch+1}")
+            print(f"New best model saved with accuracy: {accuracy:.4f} and loss: {loss:.4f} (at epoch: {self.highest_epoch}")
 
         return {"loss": loss, "accuracy": accuracy}
 
-    def train_model(self):
-        # vars for saving the model, and logging
-        self.highest_epoch = 0
-        self.best_val_acc = 0.0
-        self.global_step = 0
-        self.current_epoch = 0  # TODO really needed?
+    def train_model(self, resume_training=True):
+        if resume_training:
+            # load best model
 
-        for epoch in range(0, self.epochs):
-            print(f"Epoch {epoch + 1}/{self.epochs}")
+            checkpoint_path_best_model = self.checkpoint_path / f"{self.sent_encoder_model}_best_model.pt"
+
+            if Path.exists(checkpoint_path_best_model):
+                checkpoint = torch.load(checkpoint_path_best_model)
+
+                print(f"Resuming training from checkpoint {checkpoint_path_best_model}")
+
+                self.model.load_state_dict(checkpoint["model_state_dict"])
+                self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+
+                # recover training hyperparameters
+                self.best_val_acc = checkpoint["accuracy"]
+                self.highest_epoch = checkpoint["epoch"]
+                self.global_step = checkpoint["global_step"]
+
+                print(f"Found checkpoint with accuracy: {self.best_val_acc:.4f} at epoch: {self.highest_epoch}")
+
+        else:  # start training from scratch
+            print("Training from scratch")
+
+            # vars for saving the model, and logging
+
+        self.model.to(self.device)
+
+        for epoch in range(self.highest_epoch, self.epochs):
+            print(f"Epoch {epoch}/{self.epochs}")
             for b, batch in enumerate(self.val_dl):  # TOdo change to train_dl
                 batch_results = self.train_batch(batch)
 
@@ -210,20 +233,18 @@ class Train:
 
             # validate model after each epoch on dev set
             self.evaluate_model(mode="val")
-
-            self.current_epoch += 1  # TODO really needed?
             self.highest_epoch += 1
 
 
 # training
 def main():
     # TODO add argparse
-    # trainer = Train(sent_encoder_model="baseline")
+    trainer = Train(sent_encoder_model="baseline", epochs=100)
     # trainer = Train(sent_encoder_model="unilstm")
     # trainer = Train(sent_encoder_model="bilstm")
-    trainer = Train(sent_encoder_model="bilstmmax")
-    trainer.train_model()
-    trainer.test_model()
+    # trainer = Train(sent_encoder_model="bilstmmax")
+    trainer.train_model(resume_training=True)
+    # trainer.test_model()
 
 
 if __name__ == "__main__":

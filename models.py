@@ -24,7 +24,7 @@ class Model(nn.Module):
         # concatenate
         concatenated = torch.cat((u, v, abs_difference, product), dim=1)  # shape: (batch_size, 4 * encoding_dim)
 
-        print(f"Shape of concatenated: {concatenated.shape}")  # BiLSTM: [256, 32768]; UniLSTM: [256, 8192])
+        # print(f"Shape of concatenated: {concatenated.shape}")  # BiLSTM: [256, 32768]; UniLSTM: [256, 8192]) # TODO remove
 
         output = self.classifier(concatenated)  # BiLSTM in [256, 32768]
 
