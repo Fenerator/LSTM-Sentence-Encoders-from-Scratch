@@ -48,16 +48,7 @@ class UniLSTM(nn.Module):
         input_size = embeddings.shape[1]  # embedding dimensionality
 
         self.embeddings = nn.Embedding.from_pretrained(embeddings, freeze=True)
-
-        print(f"Input size: {input_size}, hidden size: {hidden_size}")
-
         self.layers = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True, bidirectional=False)
-
-        print(f"LSTM layers: {self.layers}")
-
-        # tensors for the initial hidden and cell states
-        # self.h_0 = torch.zeros(num_layers, batch_size, hidden_size).to(device)  # todo rename!!!!!
-        # self.c_0 = torch.zeros(num_layers, batch_size, hidden_size).to(device)  # todo rename!!!!!
 
     def forward(self, text, text_length):
         embedded = self.embeddings(text)
