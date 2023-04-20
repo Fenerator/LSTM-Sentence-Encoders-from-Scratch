@@ -30,11 +30,11 @@ class Train:
         self.checkpoint_path.mkdir(parents=True, exist_ok=True)
         self.log_path.mkdir(parents=True, exist_ok=True)
 
-        self.batch_sizes = (16, 256, 256)
+        self.batch_size = 16
         self.val_frequency = 100000
         self.verbose = True
 
-        self.epochs = 2
+        self.epochs = 100
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -45,10 +45,10 @@ class Train:
 
         # prepare data dl
         # dl contains keys: premise: (text, len), hypothesis (text, len), label
-        self.train_dl, self.val_dl, self.test_dl, self.vocab = prepare_data(data_path=self.data_path, batch_sizes=self.batch_sizes)
+        self.train_dl, self.val_dl, self.test_dl, self.vocab = prepare_data(data_path=self.data_path, batch_size=self.batch_size)
 
         # set the encoding method and parameters regarding the encoding
-        self.set_sent_encoder()
+        self.embedding_size = self.set_sent_encoder()
 
         # training hyperparameters
         self.model = Model(self.sent_encoder, self.embedding_size, hidden_dim=512, output_dim=3)  # check specifics
@@ -58,7 +58,7 @@ class Train:
         self.model.to(self.device)
 
         # tensorboard
-        config = {"encoder": self.sent_encoder_model, "val_freq": self.val_frequency, "batch_size": self.batch_sizes, "lr": self.lr, "device": self.device, "epochs": self.epochs, "seed": self.seed}
+        config = {"encoder": self.sent_encoder_model, "val_freq": self.val_frequency, "batch_size": self.batch_size, "lr": self.lr, "device": self.device, "epochs": self.epochs, "seed": self.seed}
         self.writer = SummaryWriter(self.log_path / f"{config}")
 
     def set_sent_encoder(self):
@@ -66,9 +66,11 @@ class Train:
             self.sent_encoder = Baseline(self.vocab.vectors)
             self.embedding_size = self.vocab.vectors.shape[1]  # sentence embedding size
 
+            return self.embedding_size
+
         elif self.sent_encoder_model == "unilstm":  # unidirectional LSTM
             self.embedding_size = 2048  # TODO check specifics; eventually rename to hidden_size
-            self.sent_encoder = UniLSTM(embeddings=self.vocab.vectors, hidden_size=self.embedding_size, batch_size=self.batch_sizes, num_layers=1, device=self.device)  # TODO check specifics
+            self.sent_encoder = UniLSTM(embeddings=self.vocab.vectors, hidden_size=self.embedding_size, batch_size=self.batch_size, num_layers=1, device=self.device)  # TODO check specifics
 
         elif self.sent_encoder_model == "bilstm":
             ...
@@ -163,8 +165,8 @@ class Train:
         accuracy = sum(batch_accuracies) / len(batch_accuracies)
 
         # logging
-        self.writer.add_scalar(f"epoch_loss/{mode}", loss, self.global_step)
-        self.writer.add_scalar(f"epoch_accuracy/{mode}", accuracy, self.global_step)
+        self.writer.add_scalar(f"loss/{mode}", loss, self.global_step)
+        self.writer.add_scalar(f"accuracy/{mode}", accuracy, self.global_step)
 
         if accuracy > self.best_val_acc and mode == "val":
             torch.save(
@@ -179,7 +181,7 @@ class Train:
             )
             self.best_val_acc = accuracy  # update best val acc
 
-            print(f"New best model saved with accuracy: {accuracy:.4f} and loss: {loss:.4f}! (at epoch: {self.highest_epoch}")
+            print(f"New best model saved with accuracy: {accuracy:.4f} and loss: {loss:.4f}! (at epoch: {self.highest_epoch+1}")
 
         return {"loss": loss, "accuracy": accuracy}
 
@@ -191,16 +193,16 @@ class Train:
         self.current_epoch = 0  # TODO really needed?
 
         for epoch in range(0, self.epochs):
-            for b, batch in enumerate(self.train_dl):
+            print(f"Epoch {epoch + 1}/{self.epochs}")
+            for b, batch in enumerate(self.val_dl):  # TOdo change to train_dl
                 batch_results = self.train_batch(batch)
 
                 # logging
                 self.writer.add_scalar("loss/train", batch_results["loss"], self.global_step)
                 self.writer.add_scalar("accuracy/train", batch_results["accuracy"], self.global_step)
 
-                # validate model on dev set
-                if b % self.val_frequency == 0:
-                    self.evaluate_model(mode="val")
+            # validate model after each epoch on dev set
+            self.evaluate_model(mode="val")
 
             self.current_epoch += 1  # TODO really needed?
             self.highest_epoch += 1
@@ -209,7 +211,8 @@ class Train:
 # training
 def main():
     # TODO add argparse
-    trainer = Train(sent_encoder_model="unilstm")
+    trainer = Train(sent_encoder_model="baseline")
+    # trainer = Train(sent_encoder_model="unilstm")
     trainer.train_model()
     trainer.test_model()
 

@@ -2,12 +2,12 @@ import torchtext
 from pathlib import Path
 
 
-def prepare_data(data_path: str, batch_sizes: tuple) -> tuple:
+def prepare_data(data_path: str, batch_size: int) -> tuple:
     """_summary_
 
     Args:
         data_path (str): _description_
-        batch_sizes (tuple): train, val, test batch sizes
+        batch_size (int):
 
     Returns:
         tuple: 3 dataloaders and vocab
@@ -26,6 +26,6 @@ def prepare_data(data_path: str, batch_sizes: tuple) -> tuple:
     LABEL.build_vocab(train)
 
     # create dataloaders
-    train_dl, val_dl, test_dl = torchtext.data.BucketIterator.splits((train, val, test), batch_sizes=batch_sizes)
+    train_dl, val_dl, test_dl = torchtext.data.BucketIterator.splits((train, val, test), batch_size=batch_size)
 
     return train_dl, val_dl, test_dl, TEXT.vocab
