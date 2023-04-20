@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 import spacy
+import sys
 
 
 def seed_everything(seed: int):
@@ -22,6 +23,9 @@ class Train:
     def __init__(self, sent_encoder_model: str, epochs: int):
         # configs
         self.data_path = Path("data/")
+        self.path_to_senteval = Path("../SentEval/")
+        self.path_to_data = self.path_to_senteval / "data/downstream/"
+        self.path_to_glove = self.data_path / "GloVe/glove.840B.300d.txt"
         self.checkpoint_path = Path("checkpoints/")
         self.log_path = Path("logs/")
         self.seed = 42
@@ -266,6 +270,26 @@ class Train:
             self.evaluate_model(mode="val")
             self.highest_epoch += 1
 
+    def run_senteval(self):
+        sys.path.insert(0, self.path_to_senteval)
+        import senteval
+
+        params_senteval = {}
+        se = senteval.engine.SE(params_senteval, batcher, prepare)
+
+        def prepare(params, samples):
+            return
+
+        def batcher(params, batch):
+            batch = [" ".join(s) for s in batch]
+            predictions = []
+            for sentence in batch:
+                prediction = self.infer(sentence, sentence)
+                predictions.append(prediction.item())
+            return predictions
+
+        ...
+
 
 # training
 def main():
@@ -280,7 +304,8 @@ def main():
     # example for inference
     prediction = trainer.infer("The cat is on the mat", "The cat is on the mat")
 
-    # senteval
+    # test usign senteval
+    trainer.run_senteval()
 
 
 if __name__ == "__main__":
