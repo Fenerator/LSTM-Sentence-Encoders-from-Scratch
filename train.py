@@ -44,6 +44,7 @@ class SentenceClassification:
         self.batch_size = 64
         self.epochs = epochs
         self.lr = lr
+        self.min_lr = 1e-5
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.sent_encoder_model = sent_encoder_model
         self.criterion = torch.nn.CrossEntropyLoss()
@@ -280,7 +281,7 @@ class SentenceClassification:
         # TRAINING LOOP
         for epoch in range(self.highest_epoch, self.epochs):
             print(f"Training: Epoch {epoch}/{self.epochs}")
-            for b, batch in enumerate(self.val_dl):  # TOdo change to train_dl
+            for b, batch in enumerate(self.train_dl):
                 batch_results = self.train_batch(batch)
 
                 # logging
@@ -300,6 +301,10 @@ class SentenceClassification:
 
                 if self.verbose:
                     print(f"Learning rate decreased to: {self.optimizer.param_groups[0]['lr']}")
+
+                if self.optimizer.param_groups[0]["lr"] < self.min_lr:
+                    print("========== Learning rate too small, stopping training ==========")
+                    break
 
     def prepare(self, params, samples):
         params.vocab = self.vocab
@@ -328,6 +333,7 @@ class SentenceClassification:
         return sent_reps
 
     def run_senteval(self):
+        print("Running senteval")
         sys.path.insert(0, self.path_to_senteval)
         import senteval
         from warnings import simplefilter
@@ -367,8 +373,6 @@ def main(sent_encoder_model, lr, max_epochs, seed, mode, resume_training, verbos
         results = trainer.run_senteval()
         print(results)
 
-
-# TODO early stopping
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -26,10 +26,8 @@ class Model(nn.Module):
 
         # print(f"Shape of concatenated: {concatenated.shape}")  # BiLSTM: [256, 32768]; UniLSTM: [256, 8192])
 
-        output = self.classifier(concatenated)  # BiLSTM in [256, 32768]
-        print(f"Dim of output: {output.shape}")
+        output = self.classifier(concatenated)
 
-        # print(f"Shape of output: {output.shape}")
         return output
 
 
