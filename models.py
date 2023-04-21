@@ -4,7 +4,7 @@ import torch.functional as F
 
 
 class Model(nn.Module):
-    def __init__(self, sentence_encoder, encoding_dim, hidden_dim, output_dim):
+    def __init__(self, sentence_encoder, encoding_dim, hidden_dim, output_dim, device):
         super().__init__()
 
         self.encoder_block = sentence_encoder
@@ -14,6 +14,11 @@ class Model(nn.Module):
         self.classifier = nn.Sequential(nn.Linear(4 * encoding_dim, hidden_dim), nn.ReLU(), nn.Linear(hidden_dim, output_dim), nn.Softmax(dim=1))  # TODO check specifics
 
     def forward(self, premise, len_premise, hypothesis, len_hypothesis):
+        premise = premise.to(self.device)
+        len_premise = len_premise.to(self.device)
+        hypothesis = hypothesis.to(self.device)
+        len_hypothesis = len_hypothesis.to(self.device)
+
         u = self.encoder_block(premise, len_premise)  # shape: (batch_size, encoding_dim)
         v = self.encoder_block(hypothesis, len_hypothesis)
 
@@ -32,7 +37,7 @@ class Model(nn.Module):
 
 
 class Baseline(nn.Module):
-    def __init__(self, embeddings):
+    def __init__(self, embeddings, device):
         super().__init__()
         self.embeddings = nn.Embedding.from_pretrained(embeddings, freeze=True)
 
@@ -44,7 +49,7 @@ class Baseline(nn.Module):
 
 
 class UniLSTM(nn.Module):
-    def __init__(self, embeddings, hidden_size, num_layers):
+    def __init__(self, embeddings, hidden_size, num_layers, device):
         super().__init__()
         input_size = embeddings.shape[1]  # embedding dimensionality
 
@@ -72,7 +77,7 @@ class UniLSTM(nn.Module):
 
 
 class BiLSTM(nn.Module):
-    def __init__(self, embeddings, hidden_size, num_layers):
+    def __init__(self, embeddings, hidden_size, num_layers, device):
         super().__init__()
 
         hidden_size = int(hidden_size / 2)  # hidden size is doubled because of bidirectional LSTM
@@ -107,7 +112,7 @@ class BiLSTM(nn.Module):
 
 
 class BiLSTMMax(nn.Module):
-    def __init__(self, embeddings, hidden_size, num_layers):
+    def __init__(self, embeddings, hidden_size, num_layers, device):
         super().__init__()
 
         hidden_size = int(hidden_size / 2)  # hidden size is doubled because of bidirectional LSTM

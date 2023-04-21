@@ -30,6 +30,7 @@ download glove vectors:
 ```bash
 cd ../
 mkdir GloVe
+cd GloVe/
 curl -Lo glove.840B.300d.zip http://nlp.stanford.edu/data/glove.840B.300d.zip
 unzip glove.840B.300d.zip
 rm glove.840B.300d.zip
@@ -38,7 +39,13 @@ rm glove.840B.300d.zip
 goto home dir again:
 
 ```bash
-cd ../../practical1/
+cd ../../../practical1/
+```
+
+download spacy model:
+
+```bash
+python -m spacy download en_core_web_sm
 ```
 
 was before:

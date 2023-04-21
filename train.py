@@ -21,7 +21,7 @@ def seed_everything(seed: int):
 
 
 class SentenceClassification:
-    def __init__(self, sent_encoder_model: str, lr: float, epochs: int, seed: int, resume_training: bool, verbose: bool):
+    def __init__(self, sent_encoder_model: str, lr: float, epochs: int, seed: int, resume_training: bool, verbose: bool, optimizer_name: str):
         # paths
         self.path_to_senteval = Path("../SentEval/")  # to import the package
         self.path_to_sent_eval_data = "../SentEval/data"  # senteval not working with pathlib
@@ -65,15 +65,22 @@ class SentenceClassification:
 
         # set the encoding method and parameters regarding the encoding
         self.sent_embedding_size = self.set_sent_encoder()
-        self.model = Model(self.sent_encoder, self.sent_embedding_size, hidden_dim=classifier_hidden_dim, output_dim=classifier_output_dim)
+        self.model = Model(self.sent_encoder, self.sent_embedding_size, hidden_dim=classifier_hidden_dim, output_dim=classifier_output_dim, device=self.device).to(self.device
 
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
+        self.optimizer_name = optimizer_name
+
+        if self.optimizer_name == "sgd":
+            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
+
+        if self.optimizer_name == "adam":
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
         # tensorboard
         config = {
             "encoder": self.sent_encoder_model,
             "batch_size": self.batch_size,
             "sent_emb_dim": self.sent_embedding_size,
+            "optimizer": self.optimizer_name,
             "lr": self.lr,
             "device": self.device,
             "max_epochs": self.epochs,
@@ -87,26 +94,26 @@ class SentenceClassification:
         print(f"Using {self.sent_encoder_model} as sentence encoder")
 
         if self.sent_encoder_model == "baseline":
-            self.sent_encoder = Baseline(self.vocab.vectors)
+            self.sent_encoder = Baseline(self.vocab.vectors, device=self.device)
             self.sent_embedding_size = self.vocab.vectors.shape[1]  # sentence embedding size
 
             return self.sent_embedding_size
 
         elif self.sent_encoder_model == "unilstm":  # unidirectional LSTM
             self.sent_embedding_size = 2048
-            self.sent_encoder = UniLSTM(embeddings=self.vocab.vectors, hidden_size=self.sent_embedding_size, num_layers=1)
+            self.sent_encoder = UniLSTM(embeddings=self.vocab.vectors, hidden_size=self.sent_embedding_size, num_layers=1, device=self.device)
 
             return self.sent_embedding_size
 
         elif self.sent_encoder_model == "bilstm":
             self.sent_embedding_size = 4096  # twice as large, as sentence embedding obtained from both directions
-            self.sent_encoder = BiLSTM(embeddings=self.vocab.vectors, hidden_size=self.sent_embedding_size, num_layers=1)
+            self.sent_encoder = BiLSTM(embeddings=self.vocab.vectors, hidden_size=self.sent_embedding_size, num_layers=1, device=self.device)
 
             return self.sent_embedding_size
 
         elif self.sent_encoder_model == "bilstmmax":
             self.sent_embedding_size = 4096  # twice as large, as sentence embedding obtained from both directions
-            self.sent_encoder = BiLSTMMax(embeddings=self.vocab.vectors, hidden_size=self.sent_embedding_size, num_layers=1)
+            self.sent_encoder = BiLSTMMax(embeddings=self.vocab.vectors, hidden_size=self.sent_embedding_size, num_layers=1, device=self.device)
 
             return self.sent_embedding_size
 
@@ -121,9 +128,10 @@ class SentenceClassification:
         self.optimizer.zero_grad()
 
         # get the data elements
-        premise, len_premise = batch.premise[0].to(self.device), batch.premise[1].to(self.device)
-        hypothesis, len_hypothesis = batch.hypothesis[0].to(self.device), batch.hypothesis[1].to(self.device)
-        labels = batch.label.to(self.device)
+        # TODO remove: was like this premise, len_premise = batch.premise[0].to(self.device), batch.premise[1].to(self.device)
+        premise, len_premise = batch.premise[0], batch.premise[1]
+        hypothesis, len_hypothesis = batch.hypothesis[0], batch.hypothesis[1]
+        labels = batch.label
 
         # forward pass
         output = self.model(premise, len_premise, hypothesis, len_hypothesis)
@@ -146,10 +154,10 @@ class SentenceClassification:
     def val_batch(self, batch):
         batch_results = {}
 
-        # get the data elements
-        premise, len_premise = batch.premise[0].to(self.device), batch.premise[1].to(self.device)
-        hypothesis, len_hypothesis = batch.hypothesis[0].to(self.device), batch.hypothesis[1].to(self.device)
-        labels = batch.label.to(self.device)
+        # get the data elements       
+        premise, len_premise = batch.premise[0], batch.premise[1]
+        hypothesis, len_hypothesis = batch.hypothesis[0], batch.hypothesis[1]
+        labels = batch.label
 
         # forward pass
         output = self.model(premise, len_premise, hypothesis, len_hypothesis)
@@ -168,9 +176,9 @@ class SentenceClassification:
 
         indexed, length = [self.vocab.stoi[t] for t in tokenized], [len(tokenized)]
 
-        tensorized = torch.tensor(indexed).to(self.device)
+        tensorized = torch.tensor(indexed)
         tensorized = tensorized.unsqueeze(1).T  # batchsize, seq_len
-        length_tensor = torch.tensor(length, dtype=torch.long).to(self.device)
+        length_tensor = torch.tensor(length, dtype=torch.long)
 
         return tensorized, length_tensor
 
@@ -182,9 +190,6 @@ class SentenceClassification:
 
         premise, len_p = self._infer(premise, tokenizer)
         hypothesis, len_h = self._infer(hypothesis, tokenizer)
-
-        # premise = torch.tensor(premise).to(self.device)
-        # hypothesis = torch.tensor(hypothesis).to(self.device)
 
         output = self.model(premise, len_p, hypothesis, len_h)
 
@@ -246,8 +251,10 @@ class SentenceClassification:
             self.best_val_acc = accuracy  # update best val acc
 
             print(f"New best model saved with accuracy: {accuracy:.4f} and loss: {loss:.4f} (at epoch: {self.highest_epoch}")
+
         if self.verbose:
             print(f"loss/{mode}: {loss:.4f}, accuracy/{mode}: {accuracy:.4f}")
+
         return {"loss": loss, "accuracy": accuracy, "improved": improved}
 
     def fit(self, resume_training=True):
@@ -297,14 +304,15 @@ class SentenceClassification:
                 if self.verbose:
                     print(f'Old learning rate: {self.optimizer.param_groups[0]["lr"]}')
 
-                self.optimizer.param_groups[0]["lr"] = self.optimizer.param_groups[0]["lr"] / self.shrink_factor  # decrease lr if improvement
+                if self.optimizer_name == "sgd":
+                    self.optimizer.param_groups[0]["lr"] = self.optimizer.param_groups[0]["lr"] / self.shrink_factor  # decrease lr if improvement
 
-                if self.verbose:
-                    print(f"Learning rate decreased to: {self.optimizer.param_groups[0]['lr']}")
+                    if self.verbose:
+                        print(f"Learning rate decreased to: {self.optimizer.param_groups[0]['lr']}")
 
-                if self.optimizer.param_groups[0]["lr"] < self.min_lr:
-                    print("========== Learning rate too small, stopping training ==========")
-                    break
+                    if self.optimizer.param_groups[0]["lr"] < self.min_lr:
+                        print("========== Learning rate too small, stopping training ==========")
+                        break
 
     def prepare(self, params, samples):
         params.vocab = self.vocab
@@ -316,8 +324,8 @@ class SentenceClassification:
         sent_reps = []
 
         for sent in batch:
-            if sent == []:
-                sent = ["."]
+            # if sent == []:
+            #   sent = ["."] #TODO check if needed
 
             indexed = [params.vocab.stoi[word] for word in sent]
             tensorized = torch.tensor([indexed])
@@ -352,8 +360,8 @@ class SentenceClassification:
 
 
 # training
-def main(sent_encoder_model, lr, max_epochs, seed, mode, resume_training, verbose):
-    trainer = SentenceClassification(sent_encoder_model=sent_encoder_model, lr=lr, epochs=max_epochs, seed=seed, resume_training=resume_training, verbose=verbose)
+def main(sent_encoder_model, lr, max_epochs, seed, mode, resume_training, verbose, optimizer):
+    trainer = SentenceClassification(sent_encoder_model=sent_encoder_model, lr=lr, epochs=max_epochs, seed=seed, resume_training=resume_training, verbose=verbose, optimizer_name=optimizer)
 
     if mode == "train" or mode == "all":
         trainer.fit(resume_training=resume_training)
@@ -381,6 +389,7 @@ if __name__ == "__main__":
     parser.add_argument("--mode", type=str, default="all", help="Mode to run: train, test, infer, senteval, or all; default is all")
     parser.add_argument("--resume_training", action="store_true", help="Whether to resume training from checkpoint")
     parser.add_argument("--verbose", action="store_true", help="Whether to print verbose output")
+    parser.add_argument("--optimizer", type=str, default="sgd", help="Optimizer to use: adam, sgd, ; default is adam")
 
     parser.add_argument("--lr", type=float, default=0.001, help="Initial Learning rate, default 0.001")
     parser.add_argument("--max_epochs", type=int, default=20, help="Maximum number of epochs to train for, default 20")
