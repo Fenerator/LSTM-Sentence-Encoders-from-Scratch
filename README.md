@@ -11,6 +11,7 @@ install torchtext v 0.6.0:
 clone infersent repo:
 
 ```bash
+cd ..
 git clone https://github.com/facebookresearch/SentEval.git 
 cd SentEval/
 python setup.py install    
@@ -29,9 +30,15 @@ download glove vectors:
 ```bash
 cd ../
 mkdir GloVe
-curl http://nlp.stanford.edu/data/glove.840B.300d.zip
+curl -Lo glove.840B.300d.zip http://nlp.stanford.edu/data/glove.840B.300d.zip
 unzip glove.840B.300d.zip
 rm glove.840B.300d.zip
+```
+
+goto home dir again:
+
+```bash
+cd ../../practical1/
 ```
 
 was before:
