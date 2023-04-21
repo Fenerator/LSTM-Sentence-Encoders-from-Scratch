@@ -132,7 +132,7 @@ class SentenceClassification:
         # TODO remove: was like this premise, len_premise = batch.premise[0].to(self.device), batch.premise[1].to(self.device)
         premise, len_premise = batch.premise[0], batch.premise[1]
         hypothesis, len_hypothesis = batch.hypothesis[0], batch.hypothesis[1]
-        labels = batch.label
+        labels = batch.label.to(self.device)
 
         # forward pass
         output = self.model(premise, len_premise, hypothesis, len_hypothesis)
@@ -158,7 +158,7 @@ class SentenceClassification:
         # get the data elements
         premise, len_premise = batch.premise[0], batch.premise[1]
         hypothesis, len_hypothesis = batch.hypothesis[0], batch.hypothesis[1]
-        labels = batch.label
+        labels = batch.label.to(self.device)
 
         # forward pass
         output = self.model(premise, len_premise, hypothesis, len_hypothesis)
@@ -334,6 +334,7 @@ class SentenceClassification:
 
             with torch.no_grad():
                 sent_encoded = params.encoder(tensorized, len_tokens)
+                print(f"Device of sent encoded in batcher: {sent_encoded.get_device()}; -1 is cpu")  # -1 is cpu
 
             sent_reps.append(sent_encoded.detach().numpy())
 
