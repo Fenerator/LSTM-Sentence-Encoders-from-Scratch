@@ -2,15 +2,6 @@
 
 ## Preparations
 
-download glove vectors:
-
-```bash
-mkdir data/GloVe
-curl -Lo data/GloVe/glove.840B.300d.zip http://nlp.stanford.edu/data/glove.840B.300d.zip
-unzip data/GloVe/glove.840B.300d.zip -d data/GloVe/
-rm data/GloVe/glove.840B.300d.zip
-```
-
 install torchtext v 0.6.0:
 
  ```bash
@@ -32,3 +23,18 @@ CHANGE: download data for SentEval using command from [this repo](https://github
 wget https://huggingface.co/datasets/princeton-nlp/datasets-for-simcse/resolve/main/senteval.tar
 tar xvf senteval.tar
 ```
+
+download glove vectors:
+
+```bash
+cd ../
+mkdir GloVe
+curl http://nlp.stanford.edu/data/glove.840B.300d.zip
+unzip glove.840B.300d.zip
+rm glove.840B.300d.zip
+```
+
+was before:
+curl -Lo data/GloVe/glove.840B.300d.zip <http://nlp.stanford.edu/data/glove.840B.300d.zip>
+unzip data/GloVe/glove.840B.300d.zip -d data/GloVe/
+rm data/GloVe/glove.840B.300d.zip

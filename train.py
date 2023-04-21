@@ -6,6 +6,7 @@ import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 import spacy
 import sys
+import argparse
 
 
 def seed_everything(seed: int):
@@ -19,17 +20,17 @@ def seed_everything(seed: int):
         torch.backends.cudnn.benchmark = False
 
 
-class Train:
-    def __init__(self, sent_encoder_model: str, epochs: int):
+class SentenceClassification:
+    def __init__(self, sent_encoder_model: str, lr: float, epochs: int, seed: int):
         # configs
         self.data_path = Path("data/")
-        self.path_to_senteval = Path("../SentEval/")
-        self.path_to_data = "../SentEval/data"
-        self.path_to_glove = self.data_path / "GloVe/glove.840B.300d.txt"
+        self.path_to_senteval = Path("../SentEval/")  # to import the package
+        self.path_to_sent_eval_data = "../SentEval/data"
+        self.path_to_glove = self.path_to_senteval / "GloVe/glove.840B.300d.txt"
         self.checkpoint_path = Path("checkpoints/")
         self.log_path = Path("logs/")
-        self.seed = 42
-        self.lr = 0.001
+        self.seed = seed
+        self.lr = lr
 
         self.data_path.mkdir(parents=True, exist_ok=True)
         self.checkpoint_path.mkdir(parents=True, exist_ok=True)
@@ -64,7 +65,7 @@ class Train:
         self.global_step = 0
 
         # tensorboard
-        config = {"encoder": self.sent_encoder_model, "val_freq": self.val_frequency, "batch_size": self.batch_size, "lr": self.lr, "device": self.device, "epochs": self.epochs, "seed": self.seed}
+        config = {"encoder": self.sent_encoder_model, "batch_size": self.batch_size, "lr": self.lr, "device": self.device, "max_epochs": self.epochs, "seed": self.seed}
         self.writer = SummaryWriter(self.log_path / f"{config}")
 
     def set_sent_encoder(self):
@@ -169,11 +170,10 @@ class Train:
         # hypothesis = torch.tensor(hypothesis).to(self.device)
 
         output = self.model(premise, len_p, hypothesis, len_h)
-        print(f"output: {output}")
-        prediction = torch.argmax(output, dim=1)  # shape: (batch_size,)
-        print(f"prediction: {prediction}")
 
-        return prediction
+        scores = torch.argmax(output, dim=1)  # shape: (batch_size,)
+
+        return {"output": output, "scores": scores}
 
     def test_model(self):
         # load best model
@@ -304,7 +304,7 @@ class Train:
 
         simplefilter("ignore", category=ConvergenceWarning)
 
-        params_senteval = {"task_path": self.path_to_data, "usepytorch": False, "kfold": 5}
+        params_senteval = {"task_path": self.path_to_sent_eval_data, "usepytorch": False, "kfold": 5}
         params_senteval["classifier"] = {"nhid": 0, "optim": "adam", "batch_size": 128, "tenacity": 2, "epoch_size": 3}
         transfer_tasks = ["MR", "CR", "SUBJ", "MPQA", "SST2", "TREC", "SICKEntailment", "MRPC"]
 
@@ -315,25 +315,43 @@ class Train:
 
 
 # training
-def main():
-    # TODO add argparse
+def main(sent_encoder_model, lr, max_epochs, seed, mode, resume_training):
+    # Done add argparse
     # TODO decrease lr
     # TODO check if same params as paper are used
 
-    trainer = Train(sent_encoder_model="baseline", epochs=5)
-    # trainer = Train(sent_encoder_model="unilstm")
-    # trainer = Train(sent_encoder_model="bilstm")
-    # trainer = Train(sent_encoder_model="bilstmmax")
-    trainer.fit(resume_training=False)
-    trainer.test_model()
+    trainer = SentenceClassification(sent_encoder_model=sent_encoder_model, lr=lr, epochs=max_epochs, seed=seed)
 
-    # example for inference
-    prediction = trainer.infer("The cat is on the mat", "The cat is on the mat")
+    if mode == "train" or mode == "all":
+        trainer.fit(resume_training=resume_training)
 
-    # test usign senteval
-    results = trainer.run_senteval()
-    print(results)
+    if mode == "test" or mode == "all":
+        trainer.test_model()
+
+    if mode == "infer":
+        # example for inference
+        output = trainer.infer("The cat is on the mat", "The cat is on the mat")
+
+        print(f'Predicted Class: {output["prediction"]}')
+        print(f'Scores: {output["scores"]}')
+
+    if mode == "senteval" or mode == "all":
+        # test usign senteval
+        results = trainer.run_senteval()
+        print(results)
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--sent_encoder_model", type=str, required=True, help="Sentence encoder model to use: baseline, unilstm, bilstm, orbilstmmax")
+    parser.add_argument("--mode", type=str, default="all", help="Mode to run: train, test, infer, senteval, or all; default is all")
+    parser.add_argument("--resume_training", type=bool, default=True, help="Whether to resume training from checkpoint or not, default True")
+    parser.add_argument("--lr", type=float, default=0.001, help="Learning rate, default 0.001")
+    parser.add_argument("--max_epochs", type=int, default=20, help="Maximum number of epochs to train for, default 20")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed, default 42")
+
+    args = parser.parse_args()
+    kwargs = vars(args)
+
+    main(**kwargs)
