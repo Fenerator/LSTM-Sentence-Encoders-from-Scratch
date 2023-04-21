@@ -65,7 +65,7 @@ class SentenceClassification:
 
         # set the encoding method and parameters regarding the encoding
         self.sent_embedding_size = self.set_sent_encoder()
-        self.model = Model(self.sent_encoder, self.sent_embedding_size, hidden_dim=classifier_hidden_dim, output_dim=classifier_output_dim, device=self.device).to(self.device
+        self.model = Model(self.sent_encoder, self.sent_embedding_size, hidden_dim=classifier_hidden_dim, output_dim=classifier_output_dim, device=self.device)
 
         self.optimizer_name = optimizer_name
 
@@ -154,7 +154,7 @@ class SentenceClassification:
     def val_batch(self, batch):
         batch_results = {}
 
-        # get the data elements       
+        # get the data elements
         premise, len_premise = batch.premise[0], batch.premise[1]
         hypothesis, len_hypothesis = batch.hypothesis[0], batch.hypothesis[1]
         labels = batch.label
@@ -391,7 +391,7 @@ if __name__ == "__main__":
     parser.add_argument("--verbose", action="store_true", help="Whether to print verbose output")
     parser.add_argument("--optimizer", type=str, default="sgd", help="Optimizer to use: adam, sgd, ; default is adam")
 
-    parser.add_argument("--lr", type=float, default=0.001, help="Initial Learning rate, default 0.001")
+    parser.add_argument("--lr", type=float, default=0.1, help="Initial Learning rate, default 0.1")
     parser.add_argument("--max_epochs", type=int, default=20, help="Maximum number of epochs to train for, default 20")
     parser.add_argument("--seed", type=int, default=42, help="Random seed, default 42")
 

@@ -6,6 +6,7 @@ import torch.functional as F
 class Model(nn.Module):
     def __init__(self, sentence_encoder, encoding_dim, hidden_dim, output_dim, device):
         super().__init__()
+        self.device = device
 
         self.encoder_block = sentence_encoder
 
