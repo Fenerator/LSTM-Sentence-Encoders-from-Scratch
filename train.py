@@ -325,8 +325,9 @@ class SentenceClassification:
         sent_reps = []
 
         for sent in batch:
-            # if sent == []:
-            #   sent = ["."] #TODO check if needed
+            if sent == []:
+                print(f"Empty sentence in batcher")
+                sent = ["."]  # TODO check if needed
 
             indexed = [params.vocab.stoi[word] for word in sent]
             tensorized = torch.tensor([indexed])
@@ -334,7 +335,7 @@ class SentenceClassification:
 
             with torch.no_grad():
                 sent_encoded = params.encoder(tensorized, len_tokens)
-                print(f"============= Device of sent encoded in batcher: {sent_encoded.get_device()}; -1 is cpu")  # -1 is cpu
+                # print(f"============= Device of sent encoded in batcher: {sent_encoded.get_device()}; -1 is cpu")  # -1 is cpu
 
             sent_reps.append(sent_encoded.detach().numpy())
 
