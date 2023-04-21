@@ -24,7 +24,7 @@ class Train:
         # configs
         self.data_path = Path("data/")
         self.path_to_senteval = Path("../SentEval/")
-        self.path_to_data = self.path_to_senteval / "data/downstream/"
+        self.path_to_data = "../SentEval/data"
         self.path_to_glove = self.data_path / "GloVe/glove.840B.300d.txt"
         self.checkpoint_path = Path("checkpoints/")
         self.log_path = Path("logs/")
@@ -229,7 +229,7 @@ class Train:
 
         return {"loss": loss, "accuracy": accuracy}
 
-    def train_model(self, resume_training=True):
+    def fit(self, resume_training=True):
         if resume_training:
             # load best model
 
@@ -270,42 +270,69 @@ class Train:
             self.evaluate_model(mode="val")
             self.highest_epoch += 1
 
+    def prepare(self, params, samples):
+        params.vocab = self.vocab
+        params.encoder = self.sent_encoder  # use the same encoder as the model to encode the sentences
+        return
+
+    def batcher(self, params, batch):
+        # assume batch already preprocessed
+        sent_reps = []
+
+        for sent in batch:
+            if sent == []:
+                sent = ["."]
+
+            indexed = [params.vocab.stoi[word] for word in sent]
+            tensorized = torch.tensor([indexed])
+            len_tokens = len(tensorized)
+
+            with torch.no_grad():
+                sent_encoded = params.encoder(tensorized, len_tokens)
+
+            sent_reps.append(sent_encoded.detach().numpy())
+
+        sent_reps = np.vstack(sent_reps)
+
+        return sent_reps
+
     def run_senteval(self):
         sys.path.insert(0, self.path_to_senteval)
         import senteval
+        from warnings import simplefilter
+        from sklearn.exceptions import ConvergenceWarning
 
-        params_senteval = {}
-        se = senteval.engine.SE(params_senteval, batcher, prepare)
+        simplefilter("ignore", category=ConvergenceWarning)
 
-        def prepare(params, samples):
-            return
+        params_senteval = {"task_path": self.path_to_data, "usepytorch": False, "kfold": 5}
+        params_senteval["classifier"] = {"nhid": 0, "optim": "adam", "batch_size": 128, "tenacity": 2, "epoch_size": 3}
+        transfer_tasks = ["MR", "CR", "SUBJ", "MPQA", "SST2", "TREC", "SICKEntailment", "MRPC"]
 
-        def batcher(params, batch):
-            batch = [" ".join(s) for s in batch]
-            predictions = []
-            for sentence in batch:
-                prediction = self.infer(sentence, sentence)
-                predictions.append(prediction.item())
-            return predictions
+        se = senteval.engine.SE(params_senteval, self.batcher, self.prepare)
+        results = se.eval(transfer_tasks)
 
-        ...
+        return results
 
 
 # training
 def main():
     # TODO add argparse
-    trainer = Train(sent_encoder_model="baseline", epochs=20)
+    # TODO decrease lr
+    # TODO check if same params as paper are used
+
+    trainer = Train(sent_encoder_model="baseline", epochs=5)
     # trainer = Train(sent_encoder_model="unilstm")
     # trainer = Train(sent_encoder_model="bilstm")
     # trainer = Train(sent_encoder_model="bilstmmax")
-    # trainer.train_model(resume_training=False)
-    # trainer.test_model()
+    trainer.fit(resume_training=False)
+    trainer.test_model()
 
     # example for inference
     prediction = trainer.infer("The cat is on the mat", "The cat is on the mat")
 
     # test usign senteval
-    trainer.run_senteval()
+    results = trainer.run_senteval()
+    print(results)
 
 
 if __name__ == "__main__":
