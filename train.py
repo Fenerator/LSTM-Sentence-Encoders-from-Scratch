@@ -334,11 +334,13 @@ class SentenceClassification:
 
             with torch.no_grad():
                 sent_encoded = params.encoder(tensorized, len_tokens)
-                print(f"Device of sent encoded in batcher: {sent_encoded.get_device()}; -1 is cpu")  # -1 is cpu
+                print(f"============= Device of sent encoded in batcher: {sent_encoded.get_device()}; -1 is cpu")  # -1 is cpu
 
             sent_reps.append(sent_encoded.detach().numpy())
 
         sent_reps = np.vstack(sent_reps)
+
+        sent_reps = torch.from_numpy(sent_reps).to(self.device)
 
         return sent_reps
 
