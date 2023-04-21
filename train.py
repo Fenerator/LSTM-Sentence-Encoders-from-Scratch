@@ -340,8 +340,6 @@ class SentenceClassification:
 
         sent_reps = np.vstack(sent_reps)
 
-        sent_reps = torch.from_numpy(sent_reps).to(self.device)
-
         return sent_reps
 
     def run_senteval(self):

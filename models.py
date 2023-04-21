@@ -40,7 +40,7 @@ class Model(nn.Module):
 class Baseline(nn.Module):
     def __init__(self, embeddings, device):
         super().__init__()
-        self.embeddings = nn.Embedding.from_pretrained(embeddings, freeze=True, dtype=torch.long)
+        self.embeddings = nn.Embedding.from_pretrained(embeddings, freeze=True)
 
     def forward(self, text, text_length):
         embedded = self.embeddings(text)
