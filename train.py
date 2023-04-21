@@ -21,7 +21,7 @@ def seed_everything(seed: int):
 
 
 class SentenceClassification:
-    def __init__(self, sent_encoder_model: str, lr: float, epochs: int, seed: int, resume_training: bool, verbose: bool, optimizer_name: str):
+    def __init__(self, sent_encoder_model: str, epochs: int, seed: int, resume_training: bool, verbose: bool, optimizer_name: str):
         # paths
         self.path_to_senteval = Path("../SentEval/")  # to import the package
         self.path_to_sent_eval_data = "../SentEval/data"  # senteval not working with pathlib
@@ -43,8 +43,7 @@ class SentenceClassification:
         self.shrink_factor = 5.0
         self.batch_size = 64
         self.epochs = epochs
-        self.lr = lr
-        self.min_lr = 1e-5
+        self.min_lr = 1e-5  # only for sgd
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.sent_encoder_model = sent_encoder_model
         self.criterion = torch.nn.CrossEntropyLoss()
@@ -70,9 +69,11 @@ class SentenceClassification:
         self.optimizer_name = optimizer_name
 
         if self.optimizer_name == "sgd":
+            self.lr = 1e-1
             self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
 
         if self.optimizer_name == "adam":
+            self.lr = 1e-3  # seems not to be working with 0.1
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
         # tensorboard
@@ -301,7 +302,7 @@ class SentenceClassification:
 
             # decrease learning rate if improvement in val accuracy
             if eval_results["improved"]:
-                if self.verbose:
+                if self.verbose and self.optimizer_name == "sgd":
                     print(f'Old learning rate: {self.optimizer.param_groups[0]["lr"]}')
 
                 if self.optimizer_name == "sgd":
@@ -360,8 +361,8 @@ class SentenceClassification:
 
 
 # training
-def main(sent_encoder_model, lr, max_epochs, seed, mode, resume_training, verbose, optimizer):
-    trainer = SentenceClassification(sent_encoder_model=sent_encoder_model, lr=lr, epochs=max_epochs, seed=seed, resume_training=resume_training, verbose=verbose, optimizer_name=optimizer)
+def main(sent_encoder_model, max_epochs, seed, mode, resume_training, verbose, optimizer):
+    trainer = SentenceClassification(sent_encoder_model=sent_encoder_model, epochs=max_epochs, seed=seed, resume_training=resume_training, verbose=verbose, optimizer_name=optimizer)
 
     if mode == "train" or mode == "all":
         trainer.fit(resume_training=resume_training)
@@ -391,7 +392,6 @@ if __name__ == "__main__":
     parser.add_argument("--verbose", action="store_true", help="Whether to print verbose output")
     parser.add_argument("--optimizer", type=str, default="sgd", help="Optimizer to use: adam, sgd, ; default is adam")
 
-    parser.add_argument("--lr", type=float, default=0.1, help="Initial Learning rate, default 0.1")
     parser.add_argument("--max_epochs", type=int, default=20, help="Maximum number of epochs to train for, default 20")
     parser.add_argument("--seed", type=int, default=42, help="Random seed, default 42")
 
