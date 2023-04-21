@@ -380,7 +380,7 @@ def main(sent_encoder_model, max_epochs, seed, mode, resume_training, verbose, o
     if mode == "senteval" or mode == "all":
         # test usign senteval
         results = trainer.run_senteval()
-        print(results)
+        print(f"========== SENTEVAL RESULTS ==========\n{results}")
 
 
 if __name__ == "__main__":
