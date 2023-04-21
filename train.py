@@ -387,7 +387,7 @@ def main(sent_encoder_model, max_epochs, seed, mode, resume_training, verbose, o
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--sent_encoder_model", type=str, required=True, help="Sentence encoder model to use: baseline, unilstm, bilstm, orbilstmmax")
+    parser.add_argument("--sent_encoder_model", type=str, required=True, help="Sentence encoder model to use: baseline, unilstm, bilstm, or bilstmmax")
     parser.add_argument("--mode", type=str, default="all", help="Mode to run: train, test, infer, senteval, or all; default is all")
     parser.add_argument("--resume_training", action="store_true", help="Whether to resume training from checkpoint")
     parser.add_argument("--verbose", action="store_true", help="Whether to print verbose output")

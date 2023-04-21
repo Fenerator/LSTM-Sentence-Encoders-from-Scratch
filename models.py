@@ -16,9 +16,9 @@ class Model(nn.Module):
 
     def forward(self, premise, len_premise, hypothesis, len_hypothesis):
         premise = premise.to(self.device)
-        len_premise = len_premise.to(self.device)
+        len_premise = len_premise.to(torch.int64)
         hypothesis = hypothesis.to(self.device)
-        len_hypothesis = len_hypothesis.to(self.device)
+        len_hypothesis = len_hypothesis.to(torch.int64)
 
         u = self.encoder_block(premise, len_premise)  # shape: (batch_size, encoding_dim)
         v = self.encoder_block(hypothesis, len_hypothesis)
