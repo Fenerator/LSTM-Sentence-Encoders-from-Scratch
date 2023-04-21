@@ -23,7 +23,7 @@ def seed_everything(seed: int):
 
 
 class SentenceClassification:
-    def __init__(self, sent_encoder_model: str, lr: float, epochs: int, seed: int, resume_training: bool):
+    def __init__(self, sent_encoder_model: str, lr: float, epochs: int, seed: int, resume_training: bool, verbose: bool):
         # configs
         self.path_to_senteval = Path("../SentEval/")  # to import the package
         self.path_to_sent_eval_data = "../SentEval/data"  # senteval not working with pathlib
@@ -46,7 +46,7 @@ class SentenceClassification:
 
         self.epochs = epochs
 
-        self.verbose = False  # additional print statements
+        self.verbose = verbose  # additional print statements
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -54,7 +54,7 @@ class SentenceClassification:
         self.criterion = torch.nn.CrossEntropyLoss()
 
         config = {"encoder": self.sent_encoder_model, "batch_size": self.batch_size, "lr": self.lr, "device": self.device, "max_epochs": self.epochs, "seed": self.seed}
-        print(f"Config: {config} Resume_training = {self.resume_training}")
+        print(f"Config: {config} \n Resume_training = {self.resume_training} \n verbose = {self.verbose}")
 
         # reproducibility
         seed_everything(self.seed)
@@ -67,12 +67,10 @@ class SentenceClassification:
         self.sent_embedding_size = self.set_sent_encoder()
 
         # training hyperparameters
-        self.model = Model(self.sent_encoder, self.sent_embedding_size, hidden_dim=512, output_dim=3)  # check specifics
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        self.model = Model(self.sent_encoder, self.sent_embedding_size, hidden_dim=512, output_dim=3)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
 
-        # lr scheduler
-        lmbda = lambda: 0.25  # decrease by 1/5 after each improvement
-        self.scheduler = torch.optim.lr_scheduler.MultiplicativeLR(self.optimizer, lr_lambda=lmbda, verbose=True)
+        self.shrink_factor = 5.0
 
         self.highest_epoch = 0
         self.best_val_acc = 0.0
@@ -186,9 +184,9 @@ class SentenceClassification:
 
         output = self.model(premise, len_p, hypothesis, len_h)
 
-        scores = torch.argmax(output, dim=1)  # shape: (batch_size,)
+        predicted_label = torch.argmax(output, dim=1)  # shape: (batch_size,)
 
-        return {"output": output, "scores": scores}
+        return {"output": output, "label": predicted_label}
 
     def test_model(self):
         # load best model
@@ -291,8 +289,13 @@ class SentenceClassification:
 
             # decrease learning rate if improvement in val accuracy
             if eval_results["improved"]:
-                self.scheduler.step()  # decrease learning rate by a fifth
-                print(f"Learning rate decreased to: {self.optimizer.param_groups[0]['lr']}")
+                if self.verbose:
+                    print(f'Old learning rate: {self.optimizer.param_groups[0]["lr"]}')
+
+                self.optimizer.param_groups[0]["lr"] = self.optimizer.param_groups[0]["lr"] / self.shrink_factor  # decrease lr if improvement
+
+                if self.verbose:
+                    print(f"Learning rate decreased to: {self.optimizer.param_groups[0]['lr']}")
 
     def prepare(self, params, samples):
         params.vocab = self.vocab
@@ -339,12 +342,12 @@ class SentenceClassification:
 
 
 # training
-def main(sent_encoder_model, lr, max_epochs, seed, mode, resume_training):
+def main(sent_encoder_model, lr, max_epochs, seed, mode, resume_training, verbose):
     # Done add argparse
     # TODO decrease lr
     # TODO check if same params as paper are used
 
-    trainer = SentenceClassification(sent_encoder_model=sent_encoder_model, lr=lr, epochs=max_epochs, seed=seed, resume_training=resume_training)
+    trainer = SentenceClassification(sent_encoder_model=sent_encoder_model, lr=lr, epochs=max_epochs, seed=seed, resume_training=resume_training, verbose=verbose)
 
     if mode == "train" or mode == "all":
         trainer.fit(resume_training=resume_training)
@@ -356,8 +359,8 @@ def main(sent_encoder_model, lr, max_epochs, seed, mode, resume_training):
         # example for inference
         output = trainer.infer("The cat is on the mat", "The cat is on the mat")
 
-        print(f'Predicted Class: {output["prediction"]}')
-        print(f'Scores: {output["scores"]}')
+        print(f'Predicted Class: {output["label"]}')
+        print(f'Scores: {output["output"]}')
 
     if mode == "senteval" or mode == "all":
         # test usign senteval
@@ -371,7 +374,9 @@ if __name__ == "__main__":
     parser.add_argument("--sent_encoder_model", type=str, required=True, help="Sentence encoder model to use: baseline, unilstm, bilstm, orbilstmmax")
     parser.add_argument("--mode", type=str, default="all", help="Mode to run: train, test, infer, senteval, or all; default is all")
     parser.add_argument("--resume_training", action="store_true", help="Whether to resume training from checkpoint")
-    parser.add_argument("--lr", type=float, default=0.001, help="Learning rate, default 0.001")
+    parser.add_argument("--verbose", action="store_true", help="Whether to print verbose output")
+
+    parser.add_argument("--lr", type=float, default=0.001, help="Initial Learning rate, default 0.001")
     parser.add_argument("--max_epochs", type=int, default=20, help="Maximum number of epochs to train for, default 20")
     parser.add_argument("--seed", type=int, default=42, help="Random seed, default 42")
 
