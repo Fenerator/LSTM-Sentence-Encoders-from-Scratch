@@ -335,7 +335,6 @@ class SentenceClassification:
 
             with torch.no_grad():
                 sent_encoded = params.encoder(tensorized, len_tokens)
-                # print(f"============= Device of sent encoded in batcher: {sent_encoded.get_device()}; -1 is cpu")  # -1 is cpu
 
             sent_reps.append(sent_encoded.detach().numpy())
 
@@ -344,7 +343,7 @@ class SentenceClassification:
         return sent_reps
 
     def run_senteval(self):
-        print("Running senteval")
+        print("====== Running senteval ======")
         sys.path.insert(0, self.path_to_senteval)
         import senteval
         from warnings import simplefilter
