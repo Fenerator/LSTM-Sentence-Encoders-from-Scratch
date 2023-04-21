@@ -8,6 +8,8 @@ import spacy
 import sys
 import argparse
 
+# TODO sgd optimizer
+
 
 def seed_everything(seed: int):
     # Set the random seeds for reproducibility
@@ -21,77 +23,90 @@ def seed_everything(seed: int):
 
 
 class SentenceClassification:
-    def __init__(self, sent_encoder_model: str, lr: float, epochs: int, seed: int):
+    def __init__(self, sent_encoder_model: str, lr: float, epochs: int, seed: int, resume_training: bool):
         # configs
-        self.data_path = Path("data/")
         self.path_to_senteval = Path("../SentEval/")  # to import the package
-        self.path_to_sent_eval_data = "../SentEval/data"
-        self.path_to_glove = self.path_to_senteval / "GloVe/glove.840B.300d.txt"
+        self.path_to_sent_eval_data = "../SentEval/data"  # senteval not working with pathlib
+        # self.path_to_glove_file = self.path_to_senteval / "data/GloVe/glove.840B.300d.txt"
+
+        if not Path.exists(self.path_to_senteval):
+            raise FileNotFoundError(f"SentEval not found at expected location: {self.path_to_senteval}")
+
+        self.resume_training = resume_training
+
         self.checkpoint_path = Path("checkpoints/")
         self.log_path = Path("logs/")
         self.seed = seed
         self.lr = lr
 
-        self.data_path.mkdir(parents=True, exist_ok=True)
         self.checkpoint_path.mkdir(parents=True, exist_ok=True)
         self.log_path.mkdir(parents=True, exist_ok=True)
 
         self.batch_size = 256
-        self.val_frequency = 100000
-        self.verbose = True
 
         self.epochs = epochs
 
+        self.verbose = False  # additional print statements
+
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        self.sent_encoder_model = sent_encoder_model  # TODO adapt to other models
+        self.sent_encoder_model = sent_encoder_model
         self.criterion = torch.nn.CrossEntropyLoss()
+
+        config = {"encoder": self.sent_encoder_model, "batch_size": self.batch_size, "lr": self.lr, "device": self.device, "max_epochs": self.epochs, "seed": self.seed}
+        print(f"Config: {config} Resume_training = {self.resume_training}")
 
         # reproducibility
         seed_everything(self.seed)
 
         # prepare data dl
         # dl contains keys: premise: (text, len), hypothesis (text, len), label
-        self.train_dl, self.val_dl, self.test_dl, self.vocab = prepare_data(data_path=self.data_path, batch_size=self.batch_size)
+        self.train_dl, self.val_dl, self.test_dl, self.vocab = prepare_data(data_path=self.path_to_sent_eval_data, batch_size=self.batch_size)
 
         # set the encoding method and parameters regarding the encoding
-        self.embedding_size = self.set_sent_encoder()
+        self.sent_embedding_size = self.set_sent_encoder()
 
         # training hyperparameters
-        self.model = Model(self.sent_encoder, self.embedding_size, hidden_dim=512, output_dim=3)  # check specifics
+        self.model = Model(self.sent_encoder, self.sent_embedding_size, hidden_dim=512, output_dim=3)  # check specifics
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+
+        # lr scheduler
+        lmbda = lambda: 0.25  # decrease by 1/5 after each improvement
+        self.scheduler = torch.optim.lr_scheduler.MultiplicativeLR(self.optimizer, lr_lambda=lmbda, verbose=True)
+
         self.highest_epoch = 0
         self.best_val_acc = 0.0
         self.global_step = 0
 
         # tensorboard
-        config = {"encoder": self.sent_encoder_model, "batch_size": self.batch_size, "lr": self.lr, "device": self.device, "max_epochs": self.epochs, "seed": self.seed}
         self.writer = SummaryWriter(self.log_path / f"{config}")
 
     def set_sent_encoder(self):
+        print(f"Using {self.sent_encoder_model} as sentence encoder")
+
         if self.sent_encoder_model == "baseline":
             self.sent_encoder = Baseline(self.vocab.vectors)
-            self.embedding_size = self.vocab.vectors.shape[1]  # sentence embedding size
+            self.sent_embedding_size = self.vocab.vectors.shape[1]  # sentence embedding size
 
-            return self.embedding_size
+            return self.sent_embedding_size
 
         elif self.sent_encoder_model == "unilstm":  # unidirectional LSTM
-            self.embedding_size = 2048  # TODO check specifics; eventually rename to hidden_size
-            self.sent_encoder = UniLSTM(embeddings=self.vocab.vectors, hidden_size=self.embedding_size, batch_size=self.batch_size, num_layers=1, device=self.device)  # TODO check specifics
+            self.sent_embedding_size = 2048  # TODO check specifics; eventually rename to hidden_size
+            self.sent_encoder = UniLSTM(embeddings=self.vocab.vectors, hidden_size=self.sent_embedding_size, batch_size=self.batch_size, num_layers=1, device=self.device)  # TODO check specifics
 
-            return self.embedding_size
+            return self.sent_embedding_size
 
         elif self.sent_encoder_model == "bilstm":
-            self.embedding_size = 2 * 2048  # sentence embedding obtained from both directions
-            self.sent_encoder = BiLSTM(embeddings=self.vocab.vectors, hidden_size=self.embedding_size, batch_size=self.batch_size, num_layers=1, device=self.device)
+            self.sent_embedding_size = 2 * 2048  # sentence embedding obtained from both directions
+            self.sent_encoder = BiLSTM(embeddings=self.vocab.vectors, hidden_size=self.sent_embedding_size, batch_size=self.batch_size, num_layers=1, device=self.device)
 
-            return self.embedding_size
+            return self.sent_embedding_size
 
         elif self.sent_encoder_model == "bilstmmax":
-            self.embedding_size = 2 * 2048
-            self.sent_encoder = BiLSTMMax(embeddings=self.vocab.vectors, hidden_size=self.embedding_size, batch_size=self.batch_size, num_layers=1, device=self.device)
+            self.sent_embedding_size = 2 * 2048
+            self.sent_encoder = BiLSTMMax(embeddings=self.vocab.vectors, hidden_size=self.sent_embedding_size, batch_size=self.batch_size, num_layers=1, device=self.device)
 
-            return self.embedding_size
+            return self.sent_embedding_size
 
         else:
             raise ValueError(f"Model {self.sent_encoder_model} not implemented.")
@@ -192,6 +207,7 @@ class SentenceClassification:
         print(f"Test loss: {eval_results['loss']:.4f}, Test accuracy: {eval_results['accuracy']:.4f}")
 
     def evaluate_model(self, mode="val"):
+        improved = False
         batch_losses, batch_accuracies = [], []
 
         dl = self.val_dl if mode == "val" else self.test_dl
@@ -212,6 +228,7 @@ class SentenceClassification:
         self.writer.add_scalar(f"accuracy/{mode}", accuracy, self.global_step)
 
         if accuracy > self.best_val_acc and mode == "val":
+            improved = True
             torch.save(
                 {
                     "epoch": self.highest_epoch,
@@ -226,8 +243,9 @@ class SentenceClassification:
             self.best_val_acc = accuracy  # update best val acc
 
             print(f"New best model saved with accuracy: {accuracy:.4f} and loss: {loss:.4f} (at epoch: {self.highest_epoch}")
-
-        return {"loss": loss, "accuracy": accuracy}
+        if self.verbose:
+            print(f"loss/{mode}: {loss:.4f}, accuracy/{mode}: {accuracy:.4f}")
+        return {"loss": loss, "accuracy": accuracy, "improved": improved}
 
     def fit(self, resume_training=True):
         if resume_training:
@@ -248,7 +266,7 @@ class SentenceClassification:
                 self.highest_epoch = checkpoint["epoch"]
                 self.global_step = checkpoint["global_step"]
 
-                print(f"Found checkpoint with accuracy: {self.best_val_acc:.4f} at epoch: {self.highest_epoch}")
+                print(f"Found checkpoint with val accuracy: {self.best_val_acc:.4f} at epoch: {self.highest_epoch}")
 
         else:  # start training from scratch
             print("Training from scratch")
@@ -257,8 +275,9 @@ class SentenceClassification:
 
         self.model.to(self.device)
 
+        # TRAINING LOOP
         for epoch in range(self.highest_epoch, self.epochs):
-            print(f"Epoch {epoch}/{self.epochs}")
+            print(f"Training: Epoch {epoch}/{self.epochs}")
             for b, batch in enumerate(self.val_dl):  # TOdo change to train_dl
                 batch_results = self.train_batch(batch)
 
@@ -267,8 +286,13 @@ class SentenceClassification:
                 self.writer.add_scalar("accuracy/train", batch_results["accuracy"], self.global_step)
 
             # validate model after each epoch on dev set
-            self.evaluate_model(mode="val")
+            eval_results = self.evaluate_model(mode="val")
             self.highest_epoch += 1
+
+            # decrease learning rate if improvement in val accuracy
+            if eval_results["improved"]:
+                self.scheduler.step()  # decrease learning rate by a fifth
+                print(f"Learning rate decreased to: {self.optimizer.param_groups[0]['lr']}")
 
     def prepare(self, params, samples):
         params.vocab = self.vocab
@@ -320,7 +344,7 @@ def main(sent_encoder_model, lr, max_epochs, seed, mode, resume_training):
     # TODO decrease lr
     # TODO check if same params as paper are used
 
-    trainer = SentenceClassification(sent_encoder_model=sent_encoder_model, lr=lr, epochs=max_epochs, seed=seed)
+    trainer = SentenceClassification(sent_encoder_model=sent_encoder_model, lr=lr, epochs=max_epochs, seed=seed, resume_training=resume_training)
 
     if mode == "train" or mode == "all":
         trainer.fit(resume_training=resume_training)
@@ -346,7 +370,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--sent_encoder_model", type=str, required=True, help="Sentence encoder model to use: baseline, unilstm, bilstm, orbilstmmax")
     parser.add_argument("--mode", type=str, default="all", help="Mode to run: train, test, infer, senteval, or all; default is all")
-    parser.add_argument("--resume_training", type=bool, default=True, help="Whether to resume training from checkpoint or not, default True")
+    parser.add_argument("--resume_training", action="store_true", help="Whether to resume training from checkpoint")
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate, default 0.001")
     parser.add_argument("--max_epochs", type=int, default=20, help="Maximum number of epochs to train for, default 20")
     parser.add_argument("--seed", type=int, default=42, help="Random seed, default 42")
