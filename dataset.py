@@ -7,7 +7,7 @@ import pandas as pd
 import csv
 import os, pickle
 from collections import Counter, OrderedDict, defaultdict
-
+import torchtext
 
 nltk.download("punkt")
 
@@ -72,12 +72,12 @@ class Vocabulary:
 
 
 class Custom_Dataset:
-    def __init__(self, glove_path, batch_size=1) -> None:
-        self.glove_file = glove_path
+    def __init__(self, data_path, batch_size=1) -> None:
+        self.data_path = data_path
         self.batch_size = batch_size
 
         # build vocabulary
-        self.vocab = self.load_glove_embeddings(self.glove_file)  # load vocab from glove embeddings
+        """self.vocab = self.load_glove_embeddings(self.glove_file)  # load vocab from glove embeddings
 
         # preporcessing
         print(f"Creating dataloader...")
@@ -89,6 +89,7 @@ class Custom_Dataset:
         self.test_dl = torch.utils.data.DataLoader(self.test_ds, batch_size=self.batch_size, shuffle=False)
         self.val_dl = torch.utils.data.DataLoader(self.val_ds, batch_size=self.batch_size, shuffle=False)
         self.train_dl = torch.utils.data.DataLoader(self.val_ds, batch_size=self.batch_size, shuffle=True)  # todo change
+        """
 
     def load_glove_embeddings(self, glove_file="data/GloVe/glove.840B.300d.txt"):
         if os.path.exists(glove_file + "_vocab.cache"):
@@ -123,9 +124,9 @@ class Custom_Dataset:
         return vocab
 
     def prepare_snli_data(self, split: str = "train"):
-        if os.path.exists(self.glove_file + f"_snli_{split}.cache"):
+        if os.path.exists(self.data_path + f"_snli_{split}.cache"):
             print(f"Found {split} preprocessed cache. Loading...")
-            with open(self.glove_file + f"_snli_{split}.cache", "rb") as cache_file:
+            with open(self.data_path + f"_snli_{split}.cache", "rb") as cache_file:
                 ds2 = pickle.load(cache_file)
 
         else:
@@ -140,7 +141,7 @@ class Custom_Dataset:
 
             ds2.set_format(type="torch", columns=["premise", "hypothesis", "label"])
 
-            with open(self.glove_file + f"_snli_{split}.cache", "wb") as cache_file:
+            with open(self.data_path + f"_snli_{split}.cache", "wb") as cache_file:
                 pickle.dump(ds2, cache_file)
 
         return ds2
