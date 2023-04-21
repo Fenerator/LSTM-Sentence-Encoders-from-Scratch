@@ -11,7 +11,7 @@ class Model(nn.Module):
 
         # 4096 * 4 = 16384
         # print(f"Classifier expected in dimension: {4 * encoding_dim}, hidden_dim: {hidden_dim}, output_dim: {output_dim}")
-        self.classifier = nn.Sequential(nn.Linear(4 * encoding_dim, hidden_dim), nn.ReLU(), nn.Linear(hidden_dim, output_dim), nn.Softmax())  # TODO check specifics
+        self.classifier = nn.Sequential(nn.Linear(4 * encoding_dim, hidden_dim), nn.ReLU(), nn.Linear(hidden_dim, output_dim), nn.Softmax(dim=1))  # TODO check specifics
 
     def forward(self, premise, len_premise, hypothesis, len_hypothesis):
         u = self.encoder_block(premise, len_premise)  # shape: (batch_size, encoding_dim)
@@ -24,9 +24,10 @@ class Model(nn.Module):
         # concatenate
         concatenated = torch.cat((u, v, abs_difference, product), dim=1)  # shape: (batch_size, 4 * encoding_dim)
 
-        # print(f"Shape of concatenated: {concatenated.shape}")  # BiLSTM: [256, 32768]; UniLSTM: [256, 8192]) # TODO remove
+        # print(f"Shape of concatenated: {concatenated.shape}")  # BiLSTM: [256, 32768]; UniLSTM: [256, 8192])
 
         output = self.classifier(concatenated)  # BiLSTM in [256, 32768]
+        print(f"Dim of output: {output.shape}")
 
         # print(f"Shape of output: {output.shape}")
         return output
@@ -45,7 +46,7 @@ class Baseline(nn.Module):
 
 
 class UniLSTM(nn.Module):
-    def __init__(self, embeddings, hidden_size, batch_size, num_layers, device):  # TODO remove batch_size
+    def __init__(self, embeddings, hidden_size, num_layers):
         super().__init__()
         input_size = embeddings.shape[1]  # embedding dimensionality
 
@@ -64,22 +65,22 @@ class UniLSTM(nn.Module):
         # c_n: 1,Batch_size,H of cell (1 = D*num_layers)
         output, (h_n, c_n) = self.layers(embedded_packed)
 
-        print(f"h_n shape: {h_n.shape}")  # 1, 256, 2048])
-        print(f"c_n shape: {c_n.shape}")
+        # print(f"h_n shape: {h_n.shape}")  # 1, 256, 2048])
+        # print(f"c_n shape: {c_n.shape}")
 
         sent_repr = h_n.squeeze()  # remove the first dimension (num_layers)
-        print(f"sent_repr shape: {sent_repr.shape}")  # [256, 2048]
+        # print(f"sent_repr shape: {sent_repr.shape}")  # [256, 2048]
         return sent_repr
 
 
 class BiLSTM(nn.Module):
-    def __init__(self, embeddings, hidden_size, batch_size, num_layers, device):
+    def __init__(self, embeddings, hidden_size, num_layers):
         super().__init__()
 
         hidden_size = int(hidden_size / 2)  # hidden size is doubled because of bidirectional LSTM
         input_size = embeddings.shape[1]  # embedding dimensionality (300)
 
-        print(f"Input size: {input_size}")
+        # print(f"Input size: {input_size}")
         self.embeddings = nn.Embedding.from_pretrained(embeddings, freeze=True)
         self.layers = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True, bidirectional=True)  # bidirectional LSTM
 
@@ -95,26 +96,26 @@ class BiLSTM(nn.Module):
         # c_n: 1,Batch_size,H of cell (2 = D*num_layers)
         output, (h_n, c_n) = self.layers(embedded_packed)
 
-        print(f"Output ty: {type(output)}")
-        print(f"h_n shape: {h_n.shape}")  # [2, 256, 4096]
-        print(f"c_n shape: {c_n.shape}")
+        # print(f"Output ty: {type(output)}")
+        # print(f"h_n shape: {h_n.shape}")  # [2, 256, 4096]
+        # print(f"c_n shape: {c_n.shape}")
 
         # combine both directions
         sent_repr = torch.cat((h_n[0], h_n[1]), dim=1)  # shape: (batch_size, 2 * hidden_size)
-        print(f"sent_repr shape: {sent_repr.shape}")  # [256, 8192])
+        # print(f"sent_repr shape: {sent_repr.shape}")  # [256, 8192])
         sent_repr = sent_repr.squeeze()  # remove the first dimension (num_layers)
-        print(f"sent_repr shape squeezed: {sent_repr.shape}")
+        # print(f"sent_repr shape squeezed: {sent_repr.shape}")
         return sent_repr
 
 
 class BiLSTMMax(nn.Module):
-    def __init__(self, embeddings, hidden_size, batch_size, num_layers, device):
+    def __init__(self, embeddings, hidden_size, num_layers):
         super().__init__()
 
         hidden_size = int(hidden_size / 2)  # hidden size is doubled because of bidirectional LSTM
         input_size = embeddings.shape[1]  # embedding dimensionality (300)
 
-        print(f"Input size: {input_size}")
+        # print(f"Input size: {input_size}")
         self.embeddings = nn.Embedding.from_pretrained(embeddings, freeze=True)
         self.layers = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True, bidirectional=True)  # bidirectional LSTM
 

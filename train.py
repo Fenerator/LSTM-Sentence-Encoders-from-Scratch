@@ -8,8 +8,6 @@ import spacy
 import sys
 import argparse
 
-# TODO sgd optimizer
-
 
 def seed_everything(seed: int):
     # Set the random seeds for reproducibility
@@ -24,37 +22,38 @@ def seed_everything(seed: int):
 
 class SentenceClassification:
     def __init__(self, sent_encoder_model: str, lr: float, epochs: int, seed: int, resume_training: bool, verbose: bool):
-        # configs
+        # paths
         self.path_to_senteval = Path("../SentEval/")  # to import the package
         self.path_to_sent_eval_data = "../SentEval/data"  # senteval not working with pathlib
-        # self.path_to_glove_file = self.path_to_senteval / "data/GloVe/glove.840B.300d.txt"
-
-        if not Path.exists(self.path_to_senteval):
-            raise FileNotFoundError(f"SentEval not found at expected location: {self.path_to_senteval}")
-
-        self.resume_training = resume_training
-
         self.checkpoint_path = Path("checkpoints/")
         self.log_path = Path("logs/")
-        self.seed = seed
-        self.lr = lr
 
         self.checkpoint_path.mkdir(parents=True, exist_ok=True)
         self.log_path.mkdir(parents=True, exist_ok=True)
 
-        self.batch_size = 256
+        if not Path.exists(self.path_to_senteval):
+            raise FileNotFoundError(f"SentEval not found at expected location: {self.path_to_senteval}")
 
-        self.epochs = epochs
-
+        # settings
+        self.resume_training = resume_training
         self.verbose = verbose  # additional print statements
 
+        # training hyperparameters
+        self.seed = seed
+        self.shrink_factor = 5.0
+        self.batch_size = 64
+        self.epochs = epochs
+        self.lr = lr
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-
         self.sent_encoder_model = sent_encoder_model
         self.criterion = torch.nn.CrossEntropyLoss()
+        classifier_hidden_dim = 512
+        classifier_output_dim = 3
 
-        config = {"encoder": self.sent_encoder_model, "batch_size": self.batch_size, "lr": self.lr, "device": self.device, "max_epochs": self.epochs, "seed": self.seed}
-        print(f"Config: {config} \n Resume_training = {self.resume_training} \n verbose = {self.verbose}")
+        # initial training state
+        self.highest_epoch = 0
+        self.best_val_acc = 0.0
+        self.global_step = 0
 
         # reproducibility
         seed_everything(self.seed)
@@ -65,18 +64,22 @@ class SentenceClassification:
 
         # set the encoding method and parameters regarding the encoding
         self.sent_embedding_size = self.set_sent_encoder()
+        self.model = Model(self.sent_encoder, self.sent_embedding_size, hidden_dim=classifier_hidden_dim, output_dim=classifier_output_dim)
 
-        # training hyperparameters
-        self.model = Model(self.sent_encoder, self.sent_embedding_size, hidden_dim=512, output_dim=3)
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
 
-        self.shrink_factor = 5.0
-
-        self.highest_epoch = 0
-        self.best_val_acc = 0.0
-        self.global_step = 0
-
         # tensorboard
+        config = {
+            "encoder": self.sent_encoder_model,
+            "batch_size": self.batch_size,
+            "sent_emb_dim": self.sent_embedding_size,
+            "lr": self.lr,
+            "device": self.device,
+            "max_epochs": self.epochs,
+            "seed": self.seed,
+        }
+        print(f"Config: {config} \n Resume_training = {self.resume_training} \n verbose = {self.verbose}")
+
         self.writer = SummaryWriter(self.log_path / f"{config}")
 
     def set_sent_encoder(self):
@@ -89,20 +92,20 @@ class SentenceClassification:
             return self.sent_embedding_size
 
         elif self.sent_encoder_model == "unilstm":  # unidirectional LSTM
-            self.sent_embedding_size = 2048  # TODO check specifics; eventually rename to hidden_size
-            self.sent_encoder = UniLSTM(embeddings=self.vocab.vectors, hidden_size=self.sent_embedding_size, batch_size=self.batch_size, num_layers=1, device=self.device)  # TODO check specifics
+            self.sent_embedding_size = 2048
+            self.sent_encoder = UniLSTM(embeddings=self.vocab.vectors, hidden_size=self.sent_embedding_size, num_layers=1)
 
             return self.sent_embedding_size
 
         elif self.sent_encoder_model == "bilstm":
-            self.sent_embedding_size = 2 * 2048  # sentence embedding obtained from both directions
-            self.sent_encoder = BiLSTM(embeddings=self.vocab.vectors, hidden_size=self.sent_embedding_size, batch_size=self.batch_size, num_layers=1, device=self.device)
+            self.sent_embedding_size = 4096  # twice as large, as sentence embedding obtained from both directions
+            self.sent_encoder = BiLSTM(embeddings=self.vocab.vectors, hidden_size=self.sent_embedding_size, num_layers=1)
 
             return self.sent_embedding_size
 
         elif self.sent_encoder_model == "bilstmmax":
-            self.sent_embedding_size = 2 * 2048
-            self.sent_encoder = BiLSTMMax(embeddings=self.vocab.vectors, hidden_size=self.sent_embedding_size, batch_size=self.batch_size, num_layers=1, device=self.device)
+            self.sent_embedding_size = 4096  # twice as large, as sentence embedding obtained from both directions
+            self.sent_encoder = BiLSTMMax(embeddings=self.vocab.vectors, hidden_size=self.sent_embedding_size, num_layers=1)
 
             return self.sent_embedding_size
 
@@ -195,7 +198,7 @@ class SentenceClassification:
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
-        # recover training hyperparameters # TODO really needed?
+        # recover training hyperparameters
         self.best_val_acc = checkpoint["accuracy"]
         self.highest_epoch = checkpoint["epoch"]
 
@@ -203,6 +206,7 @@ class SentenceClassification:
         eval_results = self.evaluate_model(mode="test")
 
         print(f"Test loss: {eval_results['loss']:.4f}, Test accuracy: {eval_results['accuracy']:.4f}")
+        print(f"Best validation accuracy was: {self.best_val_acc:.4f} at epoch {self.highest_epoch}")
 
     def evaluate_model(self, mode="val"):
         improved = False
@@ -343,10 +347,6 @@ class SentenceClassification:
 
 # training
 def main(sent_encoder_model, lr, max_epochs, seed, mode, resume_training, verbose):
-    # Done add argparse
-    # TODO decrease lr
-    # TODO check if same params as paper are used
-
     trainer = SentenceClassification(sent_encoder_model=sent_encoder_model, lr=lr, epochs=max_epochs, seed=seed, resume_training=resume_training, verbose=verbose)
 
     if mode == "train" or mode == "all":
@@ -367,6 +367,8 @@ def main(sent_encoder_model, lr, max_epochs, seed, mode, resume_training, verbos
         results = trainer.run_senteval()
         print(results)
 
+
+# TODO early stopping
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
