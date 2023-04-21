@@ -340,7 +340,7 @@ class SentenceClassification:
 
         sent_reps = np.vstack(sent_reps)
 
-        sent_reps = torch.from_numpy(sent_reps).to(self.device)
+        sent_reps = torch.from_numpy(sent_reps).to(self.device).long()
 
         return sent_reps
 
