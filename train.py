@@ -265,10 +265,11 @@ class SentenceClassification:
             checkpoint_path_best_model = self.checkpoint_path / f"{self.sent_encoder_model}_best_model.pt"
 
             if Path.exists(checkpoint_path_best_model):
-                checkpoint = torch.load(checkpoint_path_best_model)
+                checkpoint = torch.load(checkpoint_path_best_model, map_location="cpu")
 
                 print(f"Resuming training from checkpoint {checkpoint_path_best_model}")
 
+                self.model.to(self.device)
                 self.model.load_state_dict(checkpoint["model_state_dict"])
                 self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
@@ -284,7 +285,7 @@ class SentenceClassification:
 
             # vars for saving the model, and logging
 
-        self.model.to(self.device)
+            self.model.to(self.device)
 
         # TRAINING LOOP
         for epoch in range(self.highest_epoch, self.epochs):
