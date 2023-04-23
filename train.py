@@ -344,7 +344,10 @@ class SentenceClassification:
         return sent_reps
 
     def run_senteval(self):
-        print("====== Running senteval ======")
+        self.device = torch.device("cpu")
+
+        print(f"====== Running senteval on device {self.device}======")
+
         sys.path.insert(0, self.path_to_senteval)
         import senteval
         from warnings import simplefilter
