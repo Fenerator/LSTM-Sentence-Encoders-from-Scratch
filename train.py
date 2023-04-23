@@ -247,7 +247,7 @@ class SentenceClassification:
                     "loss": loss,
                     "accuracy": accuracy,
                 },
-                self.checkpoint_path / f"{self.sent_encoder_model}_best_model.pt",
+                self.checkpoint_path / f"{self.sent_encoder_model}_{self.optimizer_name}_best_model.pt",
             )
             self.best_val_acc = accuracy  # update best val acc
 
@@ -262,12 +262,12 @@ class SentenceClassification:
         if resume_training:
             # load best model
 
-            checkpoint_path_best_model = self.checkpoint_path / f"{self.sent_encoder_model}_best_model.pt"
+            checkpoint_path_best_model = self.checkpoint_path / f"{self.sent_encoder_model}_{self.optimizer_name}_best_model.pt"
 
             if Path.exists(checkpoint_path_best_model):
                 checkpoint = torch.load(checkpoint_path_best_model, map_location="cpu")
 
-                print(f"Resuming training from checkpoint {checkpoint_path_best_model}")
+                print(f"Resuming training from checkpoint {checkpoint_path_best_model} using optimizer: {self.optimizer_name}")
 
                 self.model.to(self.device)
                 self.model.load_state_dict(checkpoint["model_state_dict"])
