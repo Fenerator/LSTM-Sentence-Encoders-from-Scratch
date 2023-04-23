@@ -1,12 +1,12 @@
-# advanced-techniques-computational-semantics
+# advanced-techniques-computational-semantics: Practical 1
 
 ## File Organization
 
 `submission_name`: contains code for practical 1.
 
-`submission_name/logs`: contains the tensorboard logs of the training runs
+`submission_name/logs`: contains the tensorboard logs of the training runs; can be found [here](https://drive.google.com/drive/folders/1FKHTSwsS2POeaXrHnosSX4NvHmAK-WiW?usp=sharing).
 
-`submission_name/checkpoints`: would contain the checkpoints of the training runs; can be downloaded from [here](https://drive.google.com/).
+`submission_name/checkpoints`: would contain the checkpoints of the training runs; can be downloaded from [here](https://drive.google.com/drive/folders/1FzOSi5ArwK4Llg3StrOzVcbherFH7G7S?usp=sharing).
 
 `submission_name/results.ipynb`: notebook to reproduce the results of the practical.
 
@@ -26,7 +26,7 @@
 
 ## Set-up Steps
 
-1. activate a virtual environment and install dependencies from `requirements.txt` in the virtual environment; I used python 3.8.15.
+1. activate a virtual environment and install dependencies from `requirements.txt` in the virtual environment; I used Python 3.8.8.
 2. install infersent as follows:
    clone infersent repo:
 
@@ -64,7 +64,7 @@
 
 ## Example Commands
 
-for all commands see `train.py`'s main function.
+for all commands see `train.py`'s main function. Hyperparameters are set in `train.py` and `model.py`.
 
 ### Training a Model
 

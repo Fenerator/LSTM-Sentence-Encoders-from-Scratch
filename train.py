@@ -129,7 +129,6 @@ class SentenceClassification:
         self.optimizer.zero_grad()
 
         # get the data elements
-        # TODO remove: was like this premise, len_premise = batch.premise[0].to(self.device), batch.premise[1].to(self.device)
         premise, len_premise = batch.premise[0], batch.premise[1]
         hypothesis, len_hypothesis = batch.hypothesis[0], batch.hypothesis[1]
         labels = batch.label.to(self.device)
@@ -328,7 +327,7 @@ class SentenceClassification:
         for sent in batch:
             if sent == []:
                 print(f"Empty sentence in batcher")
-                sent = ["."]  # TODO check if needed
+                sent = ["."]  # senteval datasets sometimes contain empty sentences
 
             indexed = [params.vocab.stoi[word] for word in sent]
             tensorized = torch.tensor([indexed])

@@ -4,6 +4,12 @@ import torch.functional as F
 
 
 class Model(nn.Module):
+    """Combines the sentence encoder with the classifier.
+
+    Args:
+        nn (_type_): _description_
+    """
+
     def __init__(self, sentence_encoder, encoding_dim, hidden_dim, output_dim, device):
         super().__init__()
         self.device = device
@@ -12,7 +18,7 @@ class Model(nn.Module):
 
         # 4096 * 4 = 16384
         # print(f"Classifier expected in dimension: {4 * encoding_dim}, hidden_dim: {hidden_dim}, output_dim: {output_dim}")
-        self.classifier = nn.Sequential(nn.Linear(4 * encoding_dim, hidden_dim), nn.ReLU(), nn.Linear(hidden_dim, output_dim), nn.Softmax(dim=1))  # TODO check specifics
+        self.classifier = nn.Sequential(nn.Linear(4 * encoding_dim, hidden_dim), nn.ReLU(), nn.Linear(hidden_dim, output_dim), nn.Softmax(dim=1))
 
     def forward(self, premise, len_premise, hypothesis, len_hypothesis):
         premise = premise.to(self.device)
