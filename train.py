@@ -332,7 +332,7 @@ class SentenceClassification:
 
             indexed = [params.vocab.stoi[word] for word in sent]
             tensorized = torch.tensor([indexed])
-            len_tokens = len(tensorized)
+            len_tokens = [len(tensorized)]
 
             with torch.no_grad():
                 sent_encoded = params.encoder(tensorized, len_tokens)
