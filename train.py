@@ -200,7 +200,7 @@ class SentenceClassification:
 
     def test_model(self):
         # load best model
-        checkpoint = torch.load(self.checkpoint_path / f"{self.sent_encoder_model}_best_model.pt")
+        checkpoint = torch.load(self.checkpoint_path / f"{self.sent_encoder_model}_{self.optimizer_name}_best_model.pt")
 
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
