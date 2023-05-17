@@ -1,0 +1,24 @@
+#!/bin/bash
+
+#SBATCH --partition=gpu_titanrtx_shared_course
+#SBATCH --gres=gpu:1
+#SBATCH --job-name=bilstmmax-sgd
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=3
+#SBATCH --time=3:00:00
+#SBATCH --mem=32000M
+#SBATCH --output=job_output/bilstmmax_sgd%A.out
+
+
+module purge
+module load 2021
+module load Anaconda3/2021.05
+
+# activate the environment
+source activate atcs
+
+
+python train.py --mode senteval --optimizer sgd --verbose --sent_encoder_model bilstmmax
+
+
+conda deactivate 

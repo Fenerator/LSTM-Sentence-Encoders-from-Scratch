@@ -2,27 +2,23 @@
 
 #SBATCH --partition=gpu_titanrtx_shared_course
 #SBATCH --gres=gpu:1
-#SBATCH --job-name=bl
+#SBATCH --job-name=bl-adam
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=3
 #SBATCH --time=1:00:00
 #SBATCH --mem=32000M
-#SBATCH --output=job_output/baseline_%A.out
+#SBATCH --output=job_output/baseline_adam%A.out
+
 
 module purge
 module load 2021
 module load Anaconda3/2021.05
 
-conda create -y -n atcs python=3.8.8
-
+# activate the environment
 source activate atcs
 
-conda install pip
+
+python train.py --mode senteval --optimizer adam --verbose --sent_encoder_model baseline
 
 
-
-cd advanced-techniques-computational-semantics
-
-pip install -r requirements.txt
-
-conda deactivate
+conda deactivate 
