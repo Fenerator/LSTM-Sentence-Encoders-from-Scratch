@@ -17,6 +17,7 @@ module load Anaconda3/2021.05
 # activate the environment
 source activate atcs
 
+python align2text.py
 
 python sent_repr.py
 
