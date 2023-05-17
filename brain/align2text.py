@@ -5,9 +5,10 @@ import pickle
 import textgrid
 
 
-def main(argv):
+def main():
     PATH = "/project/gpuuva021/shared/FMRI-Data"
     SENT_N = 2
+
     for lan in ["EN", "FR", "CN"]:
         words = []
         scans = []
@@ -16,11 +17,11 @@ def main(argv):
             word, sections = text2fmri(tg, SENT_N)
             words.append(word)
             scans.append(sections)
-        with open(f"text_data/{lan}_aligned_words.pickle", "wb") as p:
+        with open(f"{PATH}/text_data/{lan}_aligned_words.pickle", "wb") as p:
             pickle.dump(words, p)
-        with open(f"text_data/{lan}_aligned_slices.pickle", "wb") as p:
+        with open(f"{PATH}/text_data/{lan}_aligned_slices.pickle", "wb") as p:
             pickle.dump(scans, p)
 
 
 if __name__ == "__main__":
-    main(sys.argv)
+    main()
