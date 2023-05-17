@@ -1,0 +1,40 @@
+import torch
+from transformers import AutoTokenizer, AutoModelForMaskedLM
+import pickle
+
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
+
+print(f'Using device: {device}')
+
+tokenizer = AutoTokenizer.from_pretrained("xlm-roberta-base")
+model = AutoModelForMaskedLM.from_pretrained("xlm-roberta-base")
+model = model.to(device)
+
+
+
+for lang in ['EN', 'CN', 'FR']:
+    print(f'Encoding Language: {lang}')
+
+    # read the aligned words
+    with open(f'/project/gpuuva021/shared/FMRI-Data/aligned/{lang}_aligned_words.pickle', 'rb') as f:
+        words = pickle.load(f) # each section contains list of scans; list of words
+
+    # store encodings of each chunk
+    hidden_states = []
+    for i, sec in enumerate(words):
+            encoded_input = tokenizer(sec, return_tensors="pt", padding = True).to(device)
+            
+            print(f'Encoding Sec {i}')
+            
+            output = model(**encoded_input, output_hidden_states=True)
+            
+            last_hidden_state = output.hidden_states[-1]
+            
+            print(f'last hidden state shape: {last_hidden_state.shape}')
+            
+            hidden_states.append(last_hidden_state)
+            
+    # save the hidden states in a list of tensors (shape: batch_size, sequence_length, hidden_size)
+    with open(f'/project/gpuuva021/shared/FMRI-Data/aligned/{lang}_hidden_states.pickle', "wb") as cache_file:
+        pickle.dump(hidden_states, cache_file)
+        
