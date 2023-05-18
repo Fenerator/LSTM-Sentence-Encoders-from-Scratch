@@ -24,7 +24,7 @@ def text2fmri(textgrid, sent_n, delay=5):
     for interval in textgrid[0].intervals[1:]:
         # print(interval.__dict__)
         # different marks depending on the language (EN, CN, FR)
-        if interval.mark == "#" or interval.mark == "sil" or interval.mark == "":
+        if interval.mark == "#" or interval.mark == "sil":  # or interval.mark == "":
             chunk += "."
             if sent_i == sent_n:
                 chunks.append(chunk[1:])

@@ -11,8 +11,7 @@ def main():
     OUTPATH = f"{PATH}/text_data"
     SENT_N = 2
 
-    # for lan in ["EN", "FR", "CN"]:
-    for lan in ["FR"]:
+    for lan in ["EN", "FR", "CN"]:
         words = []
         scans = []
         for i in range(1, 10):
@@ -22,7 +21,7 @@ def main():
             word, sections = text2fmri(tg, SENT_N)
 
             print(f"{lan}_Section {i} has {len(word)} chunks")
-            print(f"{word[:5]}")
+            # print(f"{word[:5]}")
 
             words.append(word)
             scans.append(sections)
