@@ -1,8 +1,11 @@
 import torch
 from transformers import AutoTokenizer, AutoModelForMaskedLM
-import pickle
+import pickle, os
 import numpy as np
 
+# SETTINGS
+PATH = "/project/gpuuva021/shared/FMRI-Data"
+OUTPATH = f'{PATH}/aligned/'
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 print(f"Using device: {device}")
@@ -11,7 +14,7 @@ tokenizer = AutoTokenizer.from_pretrained("xlm-roberta-base")
 model = AutoModelForMaskedLM.from_pretrained("xlm-roberta-base")
 model = model.to(device)
 
-PATH = "/project/gpuuva021/shared/FMRI-Data"
+os.makedirs(OUTPATH, exist_ok=True)
 
 for lang in ["EN", "FR", "CN"]:
     print(f"Encoding Language: {lang}")
@@ -42,5 +45,7 @@ for lang in ["EN", "FR", "CN"]:
     #     hidden_states.append(list(h_s))
 
     # # save the hidden states in a list of tensors (shape: batch_size, sequence_length, hidden_size)
-    # with open(f"{PATH}/aligned/{lang}_hidden_states.pickle", "wb") as f:
+    # with open(f"{OUTPATH}/{lang}_hidden_states.pickle", "wb") as f:
     #     pickle.dump(hidden_states, f)
+
+
