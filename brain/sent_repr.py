@@ -7,6 +7,7 @@ import numpy as np
 PATH = "/project/gpuuva021/shared/FMRI-Data"
 OUTPATH = f"{PATH}/aligned/"
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
+device = "cpu"
 
 print(f"Using device: {device}")
 
