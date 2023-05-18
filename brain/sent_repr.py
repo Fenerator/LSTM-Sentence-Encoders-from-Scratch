@@ -41,8 +41,9 @@ for lang in ["EN", "CN"]:
             )
         except IndexError:
             print(f"=== IndexError: section {i} \n {section} ===")
-
-        output = model(**encoded_input, output_hidden_states=True)
+        
+        with torch.no_grad():
+            output = model(**encoded_input, output_hidden_states=True)
 
         h_s = output.hidden_states
 
