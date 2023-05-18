@@ -136,3 +136,4 @@ checkpoints/
 logs/
 
 job_output/
+brain/brain.code-workspace
