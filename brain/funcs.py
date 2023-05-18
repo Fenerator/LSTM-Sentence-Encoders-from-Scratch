@@ -15,10 +15,10 @@ def text2fmri(textgrid, sent_n, delay = 5) :
   chunks = []
   textgrid = textgrid.tiers
   chunk = ""
-  sent_i = 0
+  sent_i = 1
   idx_start = int(delay/2)
   for interval in textgrid[0].intervals[1:]:
-    if interval.mark == "#":
+    if interval.mark == "#" or interval.mark == "sil":
       chunk+= "."
       if sent_i == sent_n :
         chunks.append(chunk[1:])
