@@ -52,7 +52,79 @@ def extract_sent_list_from_tree_file(PATH):
     return sentences
 
 
+def get_section_data(word_df, section):
+    df_by_section = word_df[word_df["section"] == section]
+
+    words, onsets, offsets, sections = (
+        df_by_section["word"].tolist(),
+        df_by_section["onset"].tolist(),
+        df_by_section["offset"].tolist(),
+        df_by_section["section"].tolist(),
+    )
+
+    # create list of dicts
+    section_data = []
+    sentence = ""
+    temp_onsets, temp_offsets, temp_sections = [], [], []
+    for i, word in enumerate(words):
+        sentence = sentence + word + " "
+        temp_offsets.append(offsets[i])
+        temp_onsets.append(onsets[i])
+        temp_sections.append(sections[i])
+
+        if word[-1] == "#":
+            section_data.append(
+                {
+                    "sentence": sentence[:-2] + ".",
+                    "onset": temp_onsets[0],
+                    "offset": temp_offsets[-1],
+                    "section": sections[0],
+                }
+            )
+            sentence, temp_onsets, temp_offsets, temp_sections = (
+                "",
+                [],
+                [],
+                [],
+            )  # reset
+
+    return section_data
+
+
+def align_trees_with_csv_annotations(sentences, language, word_df, chunck_size=1):
+    # replace the last word with the word + #
+    for i, sent in enumerate(sentences):
+        sentences[i][-1] = sent[-1] + "#"
+
+    # flatten the list of lists of words into a list of words
+    words = [item for sublist in sentences for item in sublist]
+
+    # integrate words back into the dataframe
+    word_df["word"] = words
+
+    # keep only relevant columns of the dataframe
+    word_df = word_df[["word", "onset", "offset", "section"]]
+
+    # get the number of unique sections
+    possible_sections = word_df["section"].unique()
+
+    # extract as lists, for each section individually
+    data = []
+    for section in possible_sections:
+        section_data = get_section_data(word_df, section)
+
+        # concatenate the sentences into chunks of size chunck_size
+
+        # add the section's data to the list of all data
+        data.append(section_data)
+
+        print(f"{language} Section {section} has {len(section_data)} chunks")
+
+    return data
+
+
 def text2fmri(textgrid, sent_n, delay=5, lan=None, sentences=None):
+    # OLD
     scan_idx = []
     chunks = []
     textgrid = textgrid.tiers
