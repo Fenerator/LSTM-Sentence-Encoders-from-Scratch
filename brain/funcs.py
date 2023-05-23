@@ -48,11 +48,11 @@ def extract_sent_list_from_tree_file(PATH):
         words = extract_words_from_tree(tree)
         sentences.append(words)  # list of list of words
 
-    print(f"Errors: {counter}")
+    print(f"Errors during tree parsings: {counter}")
     return sentences
 
 
-def get_section_data(word_df, section):
+def get_section_data(word_df, section, chunk_size):
     df_by_section = word_df[word_df["section"] == section]
 
     words, onsets, offsets, sections = (
@@ -66,16 +66,16 @@ def get_section_data(word_df, section):
     section_data = []
     sentence = ""
     temp_onsets, temp_offsets, temp_sections = [], [], []
-    for i, word in enumerate(words):
+    for start, word in enumerate(words):
         sentence = sentence + word + " "
-        temp_offsets.append(offsets[i])
-        temp_onsets.append(onsets[i])
-        temp_sections.append(sections[i])
+        temp_offsets.append(offsets[start])
+        temp_onsets.append(onsets[start])
+        temp_sections.append(sections[start])
 
         if word[-1] == "#":
             section_data.append(
                 {
-                    "sentence": sentence[:-2] + ".",
+                    "sentences": sentence[:-2] + ".",
                     "onset": temp_onsets[0],
                     "offset": temp_offsets[-1],
                     "section": sections[0],
@@ -88,7 +88,43 @@ def get_section_data(word_df, section):
                 [],
             )  # reset
 
-    return section_data
+    # chunk the section data
+    if chunk_size > 1:
+        chunk_data = []
+        try:
+            for start in range(0, len(section_data), chunk_size):
+                # print(f"from {start} to {start + chunk_size}")
+                # print(f'get onset from {start}: {section_data[start]["onset"]}')
+                # print(
+                #     f'Get offset from {start + chunk_size}: {section_data[start + chunk_size]["offset"]}'
+                # )
+
+                chunk = ""
+                for j in range(chunk_size):
+                    chunk += section_data[start + j]["sentences"] + " "
+
+                onset, offset, section = (
+                    section_data[start]["onset"],
+                    section_data[start + chunk_size - 1]["offset"],
+                    section_data[start + chunk_size - 1]["section"],
+                )
+
+                chunk_data.append(
+                    {
+                        "sentences": chunk,
+                        "onset": onset,
+                        "offset": offset,
+                        "section": section,
+                    }
+                )
+
+        except IndexError:  # add the last chunk
+            chunk_data.append(section_data[-1])
+
+        return chunk_data
+
+    else:
+        return section_data
 
 
 def align_trees_with_csv_annotations(sentences, language, word_df, chunck_size=1):
@@ -100,6 +136,9 @@ def align_trees_with_csv_annotations(sentences, language, word_df, chunck_size=1
     words = [item for sublist in sentences for item in sublist]
 
     # integrate words back into the dataframe
+    assert len(words) == len(
+        word_df
+    ), f"The number of words of tree ({len(words)}) and csv ({len(word_df)}) does not match \n {words[:4]} \n {word_df['words']}"
     word_df["word"] = words
 
     # keep only relevant columns of the dataframe
@@ -111,9 +150,7 @@ def align_trees_with_csv_annotations(sentences, language, word_df, chunck_size=1
     # extract as lists, for each section individually
     data = []
     for section in possible_sections:
-        section_data = get_section_data(word_df, section)
-
-        # concatenate the sentences into chunks of size chunck_size
+        section_data = get_section_data(word_df, section, chunck_size)
 
         # add the section's data to the list of all data
         data.append(section_data)

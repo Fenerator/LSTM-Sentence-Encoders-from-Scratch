@@ -19,13 +19,13 @@ def main():
     # get sentence information from tree files
     sentences = {
         "EN": extract_sent_list_from_tree_file(PATH / "annotation/EN/lppEN_tree.csv"),
-        # "FR": extract_sent_list_from_tree_file(PATH / 'annotation/FR/lppFR_tree.csv'),
-        # "CN": extract_sent_list_from_tree_file(PATH / 'annotation/CN/lppCN_tree.csv')
+        "FR": extract_sent_list_from_tree_file(PATH / "annotation/FR/lppFR_tree.csv"),
+        "CN": extract_sent_list_from_tree_file(PATH / "annotation/CN/lppCN_tree.csv"),
     }
 
     OUTPATH = PATH / "text_data"
     OUTPATH.mkdir(parents=True, exist_ok=True)
-    SENT_N = 1  # chunksize: nr. of sentences (of the same section)
+    SENT_N = 3  # chunksize: nr. of sentences (of the same section)
 
     for language in sentences.keys():
         # read word informations from annotation csv file
