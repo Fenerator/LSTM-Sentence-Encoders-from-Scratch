@@ -24,7 +24,6 @@ def extract_words_from_tree(tree):
         for subtree in tree:
             words.extend(extract_words_from_tree(subtree))
 
-    # sentence = " ".join(words)
     return words
 
 
@@ -47,32 +46,37 @@ def extract_sent_list_from_tree_file(PATH):
                 print(f"=== ValueError: line {i} \n {line} ===")
                 continue
         words = extract_words_from_tree(tree)
-        sentences.append(" ".join(words))
+        sentences.append(words)  # list of list of words
 
     print(f"Errors: {counter}")
     return sentences
 
 
-def text2fmri(textgrid, sent_n, delay=5):
+def text2fmri(textgrid, sent_n, delay=5, lan=None, sentences=None):
     scan_idx = []
     chunks = []
     textgrid = textgrid.tiers
     chunk = ""
     sent_i = 1
     idx_start = int(delay / 2)
-    for interval in textgrid[0].intervals[1:]:
-        # print(interval.__dict__)
-        # different marks depending on the language (EN, CN, FR)
-        if interval.mark == "#" or interval.mark == "sil":  # or interval.mark == "":
-            chunk += "."
-            if sent_i == sent_n:
-                chunks.append(chunk[1:])
-                idx_end = min(int((interval.maxTime + delay) / 2) + 1, 282)
-                scan_idx.append(slice(idx_start, idx_end))
-                sent_i = 0
-                chunk = ""
-                idx_start = idx_end - 1
-            sent_i += 1
-            continue
-        chunk += " " + interval.mark
-    return chunks, scan_idx
+
+    if lan == "EN":
+        for interval in textgrid[0].intervals[1:]:
+            # print(interval.mark)
+            # print(interval.__dict__)
+            # different marks depending on the language (EN, CN, FR)
+            if (
+                interval.mark == "#" or interval.mark == "sil"
+            ):  # or interval.mark == "":
+                chunk += "."
+                if sent_i == sent_n:
+                    chunks.append(chunk[1:])
+                    idx_end = min(int((interval.maxTime + delay) / 2) + 1, 282)
+                    scan_idx.append(slice(idx_start, idx_end))
+                    sent_i = 0
+                    chunk = ""
+                    idx_start = idx_end - 1
+                sent_i += 1
+                continue
+            chunk += " " + interval.mark
+        return chunks, scan_idx
