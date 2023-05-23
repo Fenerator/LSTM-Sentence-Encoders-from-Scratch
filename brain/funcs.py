@@ -88,7 +88,7 @@ def get_section_data(word_df, section, chunk_size):
                 [],
             )  # reset
 
-    # chunk the section data
+    # chunk the section data #TODO: make it work for chunk size > 2
     if chunk_size > 1:
         chunk_data = []
         try:
@@ -118,7 +118,7 @@ def get_section_data(word_df, section, chunk_size):
                     }
                 )
 
-        except IndexError:  # add the last chunk
+        except IndexError:  # add the last chunk in case of chunk size 2
             chunk_data.append(section_data[-1])
 
         return chunk_data
@@ -135,14 +135,38 @@ def align_trees_with_csv_annotations(sentences, language, word_df, chunck_size=1
     # flatten the list of lists of words into a list of words
     words = [item for sublist in sentences for item in sublist]
 
+    print(word_df["word"].tolist()[:10])
+
+    # TODO: check how bad the mismatch is
+    if language == "FR":
+        print("FR")
+        words = words[:-1]
+        words[-1] = words[-1] + "#"
+
+    # counter = 0
+    # for i, (word, word_csv) in enumerate(zip(words, word_df["word"].tolist())):
+    #     if word != word_csv and word != word_csv + "#":
+    #         counter += 1
+    #         if counter < 10:
+    #             print(f"{i} Word mismatch: {word} != {word_csv}")
+
+    #     # if counter > 10:
+    #     #     break
+    # print(f"Total number of mismatches: {counter}")
+
     # integrate words back into the dataframe
     assert len(words) == len(
         word_df
-    ), f"The number of words of tree ({len(words)}) and csv ({len(word_df)}) does not match \n {words[:4]} \n {word_df['words']}"
+    ), f"The number of words of tree ({len(words)}) and csv ({len(word_df)}) does not match"
+    # print(len(words), len(word_df))
+
     word_df["word"] = words
 
     # keep only relevant columns of the dataframe
     word_df = word_df[["word", "onset", "offset", "section"]]
+
+    # dump as csv
+    word_df.to_csv(f"test.csv", index=False)
 
     # get the number of unique sections
     possible_sections = word_df["section"].unique()

@@ -25,7 +25,7 @@ def main():
 
     OUTPATH = PATH / "text_data"
     OUTPATH.mkdir(parents=True, exist_ok=True)
-    SENT_N = 3  # chunksize: nr. of sentences (of the same section)
+    SENT_N = 1  # chunksize: nr. of sentences (of the same section)
 
     for language in sentences.keys():
         # read word informations from annotation csv file
@@ -33,16 +33,18 @@ def main():
             PATH / f"annotation/{language}/lpp{language}_word_information.csv"
         )
 
+        # make sure to drop rows where the word is ' ' (space)
+        # word_df = word_df[word_df["word"] != " "]
+
         # data is list of sections containing lists of sentences containing dict with keys "sentence", "onset", "offset", "section"
         data = align_trees_with_csv_annotations(
-            sentences[language],
-            language,
-            word_df,
-            chunck_size=SENT_N,
+            sentences[language], language, word_df, chunck_size=SENT_N
         )
 
         # save the data as a pickle file
-        with open(f"{OUTPATH}/{language}_chunk_data.pickle", "wb") as p:
+        with open(
+            f"{OUTPATH}/{language}_chunk_data_chunk_size_{SENT_N}.pickle", "wb"
+        ) as p:
             pickle.dump(data, p)
 
 
