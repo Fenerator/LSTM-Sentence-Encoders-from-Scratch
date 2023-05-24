@@ -77,6 +77,8 @@ for sent_n in SENT_N:
                 
             section_h_s = torch.cat((section_h_s), dim=1)
             
+            section_h_s = section_h_s.to('cpu')
+            
             # RuntimeError: Sizes of tensors must match except in dimension 1. 
             # Expected size 76 but got size 57 for tensor number 1 in the list.
 
