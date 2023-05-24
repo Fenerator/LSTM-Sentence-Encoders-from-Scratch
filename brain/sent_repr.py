@@ -6,7 +6,7 @@ import numpy as np
 # SETTINGS
 PATH = "/project/gpuuva021/shared/FMRI-Data"
 OUTPATH = f"{PATH}/aligned"
-SENT_N = [2, 1]  # chunksize: nr. of sentences (of the same section)
+SENT_N = [2]  # chunksize: nr. of sentences (of the same section)
 BATCH_SIZE = 32
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -59,7 +59,7 @@ for sent_n in SENT_N:
                 print(f"Encoding batch: {batch}")
                 try:
                     encoded_input = tokenizer(
-                        batch, return_tensors="pt", padding="max_length", max_length=100
+                        batch, return_tensors="pt", padding="max_length", max_length=150
                     ).to(device)
                 except IndexError:
                     print(f"=== IndexError: section {i} \n {section} ===")
@@ -82,7 +82,7 @@ for sent_n in SENT_N:
 
                 
             # stack all batches
-            print(f'Section shape: {section_h_s.shape}')
+            print(f'Section shape: {section_h_s.shape}') # layers, chunks, max length, hidden dim, torch.Size([13, 197, 168, 768])
             
             hidden_states_per_section.append(section_h_s)
 
