@@ -59,22 +59,38 @@ for sent_n in SENT_N:
                 print(f"Encoding batch: {batch}")
                 try:
                     encoded_input = tokenizer(
-                        batch, return_tensors="pt", padding=True
+                        batch, return_tensors="pt", padding="max_length", max_length=100
                     ).to(device)
                 except IndexError:
                     print(f"=== IndexError: section {i} \n {section} ===")
 
                 with torch.no_grad():
                     output = model(**encoded_input, output_hidden_states=True)
+                
+                print(f'Hidden state 0 shape: {output.hidden_states[0].shape}')
+                
+                all_layers = torch.stack(output.hidden_states)
+                print(f'Output hidden states len: {len(output.hidden_states)}')
+                print(f'all layers shape: {all_layers.shape}')
+                
+                section_h_s.append(all_layers)
+                
+            section_h_s = torch.cat((section_h_s), dim=1)
+            
+            # RuntimeError: Sizes of tensors must match except in dimension 1. 
+            # Expected size 76 but got size 57 for tensor number 1 in the list.
 
-                batch_h_s = output.hidden_states
+                
+            # stack all batches
+            print(f'Section shape: {section_h_s.shape}')
+            
+            hidden_states_per_section.append(section_h_s)
 
-                print(f"last hidden state shape: {batch_h_s[-1].shape}")
+        
 
-                section_h_s.append(batch_h_s)
-
-            hidden_states_per_section.append(list(section_h_s))
-
+        # stack all sections
+        print(f'Hidden states per sec shape: {len(hidden_states_per_section)}')
+        
         # save the hidden states in a list of tensors (sections, batches) (shape: batch_size, sequence_length, hidden_size)
         print(
             f"Saving hidden states of to {OUTPATH}/{lang}_hidden_states_chunk_size_{sent_n}.pickle"
@@ -83,3 +99,4 @@ for sent_n in SENT_N:
             f"{OUTPATH}/{lang}_hidden_states_chunk_size_{sent_n}.pickle", "wb"
         ) as f:
             pickle.dump(hidden_states_per_section, f)
+        
