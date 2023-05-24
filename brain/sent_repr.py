@@ -5,11 +5,12 @@ import numpy as np
 
 # SETTINGS
 PATH = "/project/gpuuva021/shared/FMRI-Data"
-OUTPATH = f"{PATH}/aligned/"
-SENT_N = [2]  # chunksize: nr. of sentences (of the same section)
+OUTPATH = f"{PATH}/aligned"
+SENT_N = [2, 1]  # chunksize: nr. of sentences (of the same section)
+BATCH_SIZE = 32
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
-device = "cpu"
+# device = "cpu"
 
 print(f"Using device: {device}")
 
@@ -20,8 +21,8 @@ model = model.to(device)
 os.makedirs(OUTPATH, exist_ok=True)
 
 for sent_n in SENT_N:
-    # for lang in ["EN", "FR", "CN"]:
-    for lang in ["EN"]:
+    for lang in ["EN", "FR", "CN"]:
+        # for lang in ["EN"]:
         print(f"Encoding Language: {lang}, using chunk size: {sent_n}")
 
         # read the aligned words
@@ -43,20 +44,22 @@ for sent_n in SENT_N:
             section_sentences = [chunk["sentences"].strip() for chunk in section]
 
             section_batches = []
-            for i in range(0, len(section_sentences), 16):
+            for i in range(0, len(section_sentences), BATCH_SIZE):
                 try:
-                    section_batches.append(section_sentences[i : i + 16])
+                    section_batches.append(section_sentences[i : i + BATCH_SIZE])
                 except IndexError:
                     section_batches.append(section_sentences[i:])  # Rest
+
             print(f"Nr. of batches: {len(section_batches)}")
             print(f"batch 0: {section_batches[0]}")
 
             # encode the section
             section_h_s = []
             for batch in section_batches:
+                print(f"Encoding batch: {batch}")
                 try:
                     encoded_input = tokenizer(
-                        section_batches, return_tensors="pt", padding=True
+                        batch, return_tensors="pt", padding=True
                     ).to(device)
                 except IndexError:
                     print(f"=== IndexError: section {i} \n {section} ===")
@@ -73,6 +76,9 @@ for sent_n in SENT_N:
             hidden_states_per_section.append(list(section_h_s))
 
         # save the hidden states in a list of tensors (sections, batches) (shape: batch_size, sequence_length, hidden_size)
+        print(
+            f"Saving hidden states of to {OUTPATH}/{lang}_hidden_states_chunk_size_{sent_n}.pickle"
+        )
         with open(
             f"{OUTPATH}/{lang}_hidden_states_chunk_size_{sent_n}.pickle", "wb"
         ) as f:
