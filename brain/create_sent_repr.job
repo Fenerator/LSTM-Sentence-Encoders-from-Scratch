@@ -7,7 +7,7 @@
 #SBATCH --cpus-per-task=3
 #SBATCH --time=3:00:00
 #SBATCH --mem=32000M
-#SBATCH --output=create_sent_reps_%A.out
+#SBATCH --output=create_sent_reps_chunks_1_and_2%A.out
 
 
 module purge
