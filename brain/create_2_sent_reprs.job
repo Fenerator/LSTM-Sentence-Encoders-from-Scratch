@@ -5,9 +5,9 @@
 #SBATCH --job-name=brain
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=3
-#SBATCH --time=3:00:00
+#SBATCH --time=00:15:00
 #SBATCH --mem=32000M
-#SBATCH --output=create_sent_reps_chunks_1_and_2%A.out
+#SBATCH --output=create_sent_reps_ALL_%A.out
 
 
 module purge
@@ -19,7 +19,20 @@ source activate atcs
 
 # python align2text.py
 
-python sent_repr.py
+# python sent_repr.py --lm Geotrend/bert-base-fr-cased --languages FR --sent_len 1 2 
+# python sent_repr.py --lm bert-base-uncased --languages EN --sent_len 1 2 
+# python sent_repr.py --lm bert-base-chinese --languages CN --sent_len 1 2 
+
+python get_sentiments.py --language FR --sent_len 1 
+python get_sentiments.py --language EN --sent_len 1 
+python get_sentiments.py --language CN --sent_len 1
+
+# python get_sentiments.py --language FR --sent_len 2
+# python get_sentiments.py --language EN --sent_len 2 
+# python get_sentiments.py --language CN --sent_len 2
+
+
+# python sent_repr.py --lm xlm-roberta-base --languages FR EN CN --sent_len 1 2 
 
 
 conda deactivate 
