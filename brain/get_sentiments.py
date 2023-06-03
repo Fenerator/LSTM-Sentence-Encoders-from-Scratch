@@ -22,7 +22,7 @@ def get_sentiment_scores(data, sentiment_pipeline):
 
 def main(language, sent_len, OUT_FILE):
     if language == "EN" or language == "FR":
-        model = "nlptown/bert-base-multilingual-uncased-sentiment"
+        model = "cardiffnlp/twitter-xlm-roberta-base-sentiment" # POS, NEUT, NEG
     elif language == "CN":
         model = "liam168/c2-roberta-base-finetuned-dianping-chinese"
 
