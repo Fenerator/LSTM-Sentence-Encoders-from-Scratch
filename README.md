@@ -1,14 +1,8 @@
-# advanced-techniques-computational-semantics: Practical 1
+# Implementing LSTM Sentence Encoders from scratch
 
-## File Organization
+Part of the practival 1 of the lecture on advanced techniques in computational semantics.
 
-`submission_name`: contains code for practical 1.
-
-`submission_name/logs`: contains the tensorboard logs of the training runs; can be found [here](https://drive.google.com/drive/folders/1FKHTSwsS2POeaXrHnosSX4NvHmAK-WiW?usp=sharing).
-
-`submission_name/checkpoints`: would contain the checkpoints of the training runs; can be downloaded from [here](https://drive.google.com/drive/folders/1FzOSi5ArwK4Llg3StrOzVcbherFH7G7S?usp=sharing).
-
-`submission_name/results.ipynb`: notebook to reproduce the results of the practical.
+## Organization
 
 ### SentEval Location and Data
 
@@ -23,6 +17,8 @@
 `model.py`: contains the model definitions.
 
 `prepare_data.py`: contains the utility functions to load and preprocess the SNLI dataset.
+
+`[results.ipynb](results.ipynb)`: notebook to reproduce the results.
 
 ## Set-up Steps
 
