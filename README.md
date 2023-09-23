@@ -1,4 +1,4 @@
-# Implementing LSTM Sentence Encoders from scratch
+# Implementing LSTM Sentence Encoders from Scratch
 
 Part of the practival 1 of the lecture on advanced techniques in computational semantics.
 
